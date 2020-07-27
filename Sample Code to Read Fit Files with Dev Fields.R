@@ -14,4 +14,7 @@ fit <- readFitFile(files[1])
 ## examine the output
 names(fit)
 
-fit
+#Trying on my own
+IndivFitFile <-  "C:\\Users\\Nick.Foreman\\Desktop\\Nick Mobile Folders\\School\\2020-2021\\R Files\\RandomFitFiles\\4470572265.fit"
+
+Garmin2 <- readFitFile(IndivFitFile)
