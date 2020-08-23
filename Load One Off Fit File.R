@@ -4,8 +4,11 @@ library(fitFileR); library(data.table); library(tidyverse)
 loadfile <- "C:\\Users\\Nick.Foreman\\Desktop\\Nick Mobile Folders\\School\\2020-2021\\R Files\\RandomFitFiles\\A6NI5029.fit"
 GarminFile <- readFitFile(loadfile)
 
-loadfile2 <- "C:\\Users\\Nick.Foreman\\Desktop\\Nick Mobile Folders\\School\\2020-2021\\R Files\\RandomFitFiles\\A6JB2928.fit"
+loadfile2 <- "C:\\Users\\Nick.Foreman\\Desktop\\Nick Mobile Folders\\School\\2020-2021\\R Files\\OldFitFiles\\5415270890.fit"
 GarminFile2 <- readFitFile(loadfile2)
+
+loadfile3 <- "C:\\Users\\Nick.Foreman\\Desktop\\Nick Mobile Folders\\School\\2020-2021\\R Files\\RandomFitFiles\\LastFile4.fit"
+GarminFile3 <- readFitFile(loadfile3)
 
 GarminFile.asDF <- as.data.frame(GarminFile2) #DOESN'T WORK
 
