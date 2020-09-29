@@ -16,6 +16,7 @@ CondenseDataFromConnect <- function(data, i){
 }
 
 #Function to calculate TRIMP off of record data
+
 TRIMP.func <- function(data, i) {
   HRfreq <- data[[i]]$record %>% #data frame with frequency of each heart rate measure
     count(heart_rate) 
