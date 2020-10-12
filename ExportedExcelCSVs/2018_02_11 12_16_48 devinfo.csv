@@ -1,0 +1,7 @@
+"ID","ant_device_number","ant_network","ant_transmission_type","battery_status","battery_voltage","cum_operating_time","device_index","device_type","hardware_version","manufacturer","product","serial_number","software_version","source_type","timestamp"
+2018-02-11 12:16:48,0,NA,0,NA,255.99609375,4294967295,"creator",255,255,"garmin","fr235",3935516471,7.5,"local",2018-02-11 11:45:34
+2018-02-11 12:16:48,0,"antplus",0,NA,255.99609375,4294967295,NA,120,255,NA,"65535",0,655.35,"antplus",2018-02-11 11:45:34
+2018-02-11 12:16:48,0,"antplus",0,NA,255.99609375,190258,NA,120,255,"dynastream_oem","65535",2487262134,655.35,"antplus",2018-02-11 11:45:59
+2018-02-11 12:16:48,0,NA,0,NA,255.99609375,4294967295,NA,10,255,NA,"65535",0,2.21,"local",2018-02-11 11:48:46
+2018-02-11 12:16:48,0,NA,0,NA,255.99609375,4294967295,"creator",255,255,"garmin","fr235",3935516471,7.5,"local",2018-02-11 12:15:17
+2018-02-11 12:16:48,0,"antplus",0,NA,255.99609375,191986,NA,120,255,"dynastream_oem","2",2487262134,3,"antplus",2018-02-11 12:15:17
