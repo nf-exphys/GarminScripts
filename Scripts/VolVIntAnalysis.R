@@ -1,7 +1,7 @@
 library(tidyverse); library(lubridate); library(ggplot2)
 
 #First, load most recent copy of FitDF
-  #Specifically the cleaned data? I think so?
+  #Specifically the CleanSort files
 
 summarydata <- data.frame(matrix(NA, nrow=1350, ncol = length(Fit.DF[[1]]$sum_data)))
 names(summarydata) <- names(Fit.DF[[1]]$sum_data)
