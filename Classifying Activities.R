@@ -1,7 +1,10 @@
-library(tidyverse); library(lubridate); library(ggplot2)
+library(tidyverse); library(ggplot2)
 library(ssc) #https://cran.r-project.org/web/packages/ssc/vignettes/ssc.pdf
 library(fastDummies) #need to dummy code
   #https://rdrr.io/cran/ssc/man/setred.html
+library(anomalize) #for anomaly detection
+library(caret)
+library(tibbletime) #for creating tbl_time 
 
 load(file = "FitDFCleanSort2020-10-13.Rdata")
 load(file = "./Objects/FitDFCleanSort2020-08-24.Rdata")
@@ -54,7 +57,7 @@ label <- function(rownum,day,type=NA){ #creates function to label activities
   #If workout contains one of the two plus the workout, set act.type based on workout type
   #If workout is set to lift, leave act.type blank
   
-id <- which(grepl("date here", sumdat$timestamp)) 
+id <- which(grepl("2020-09-01", sumdat$timestamp)) 
   #modify date in quotes to see which activities were on which days
 sumdat[id,c(94,65,8,44,84,83,69,76,9)] #returns helpful information for manual classification
 
@@ -66,5 +69,33 @@ sumdat <- label(1085, "")
 
 length(which(is.na(sumdat$act.day)))
 
+#Next steps: label more (~200?)
+  #Apply annomalize here as a low level screen for outliers, might help find files with lots of outliers.
+  #https://towardsdatascience.com/tidy-anomaly-detection-using-r-82a0c776d523
+  #Apply ML methods to files with high number of outliers or high probability of outliers
+
+#trying annomalize
+sumdat.t <- cbind(data[[1398]]$record$timestamp, data[[1398]]$record[,1:8])
+colnames(sumdat.t)[1] <- "timestamp"
+sumdat.t <- sumdat.t %>% rownames_to_column() %>% as_tibble
+#sumdat.t <- sumdat.t %>% separate(timestamp, into = c("date", "time"), sep = " ")
+#sumdat.t$date <- as.Date(sumdat.t$date)
+#sumdat.t$time <- format(as.POSIXct(sumdat.t$time), format = "%H:%M:%S")
+
+sumdat.t <- sumdat.t %>% as_tbl_time(index = timestamp)
+sumdat.t <- prep_tbl_time(sumdat.t)
+
+sumdat.t %>%
+  time_decompose(heart_rate, method = "STL", frequency = "auto", trend = "auto") %>%
+  anomalize(remainder, method = "gesd", alpha = 0.05, max_anoms = 0.2) %>%
+  #time_recompose() %>% 
+  plot_anomaly_decomposition()
+rlang::last_error()
+rlang::last_trace()
+
+#Still stuck on anomalize, which may or may not actually work for my data
+#Next time try https://cran.r-project.org/web/packages/timeSeries/timeSeries.pdf
+#Or https://rdrr.io/rforge/IsolationForest/man/AnomalyScore.html
+  #Some more info here: https://medium.com/@siddharth.suresh92/isolation-forest-for-data-mining-a2c44a26d646
 
 
