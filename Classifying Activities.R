@@ -42,24 +42,29 @@ for (i in 1:length(keyvar)){
   print(which(grepl(keyvar[i],colnames(sumdat)))) #find matches for keyvar in sumdat
 }
 
-label <- function(rownum,day,type="NA"){ #creates function to label activities
+label <- function(rownum,day,type=NA){ #creates function to label activities
   sumdat[rownum,]$act.day <- day
   sumdat[rownum,]$act.type <- type
   return(sumdat)
 } #just need to make sure to set output of label to sumdat
 
-#act.day: what type of day it was - easy, workout, long, lift, bike
-#act.type: specific to workouts, describes workout type: repeats, tempo, warm-up, cool-down, other, etc.
+#act.day: what type of day it was - easy, workout/race, long, lift, bike, Boele?
+#act.type: specific to workouts, describes workout type: repeats, tempo, warm-up, cool-down, other, hills (short), etc.
   #If workout contains wu & cd, set act.type based on workout type
   #If workout contains one of the two plus the workout, set act.type based on workout type
   #If workout is set to lift, leave act.type blank
   
-id <- which(grepl("2019-07-12", sumdat$timestamp)) 
+id <- which(grepl("date here", sumdat$timestamp)) 
   #modify date in quotes to see which activities were on which days
 sumdat[id,c(94,65,8,44,84,83,69,76,9)] #returns helpful information for manual classification
 
-sumdat <- label(718, "easy")
-#start here with 2019-07-13
+sumdat <- label(1085, "")
+
+
+#double check 2019-07-12 & 2019-07-13, 2019-07-18 (stopped for July 2019 after this)
+#come back to 03-12 runs
+
+length(which(is.na(sumdat$act.day)))
 
 
 
