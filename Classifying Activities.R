@@ -98,4 +98,60 @@ rlang::last_trace()
 #Or https://rdrr.io/rforge/IsolationForest/man/AnomalyScore.html
   #Some more info here: https://medium.com/@siddharth.suresh92/isolation-forest-for-data-mining-a2c44a26d646
 
+#Maybe the best bet is to find anomalies, remove them, impute using kNN, and then smooth using 3 second rolling average?
+
+#Trying isolation forests based on walk-through here: 
+  #https://www.kaggle.com/norealityshows/outlier-detection-with-isolation-forest-in-r
+
+library(solitude)#package for isolation forest
+library(mice) #package for imputation
+#create isolation forest using isolationForest function from solitude package with default parameters
+
+data.test <- data[[1365]]$record #goldy's 10 mile
+head(data.test$timestamp,5)
+data.test$timestamp[5] + 120
+#data.test[which(is.na(data.test$heart_rate)),] #time stamps where HR is NA, which happens sometimes?
+if (length(which(is.na(data.test$heart_rate))) > 0) { #if there are NAs in HR
+  miceMod <- mice(data.test, method = "rf", print = F) 
+    #calculates values to impute using random forest, doesn't print output
+  data.test <- complete(miceMod)
+    #applies those values to data.test
+  }
+iforest<- isolationForest$new() #apply iforest algorithms
+iforest$fit(data.test)
+
+#predict outliers within dataset
+data.test$pred <- iforest$predict(data.test)
+data.test$outlier <- as.factor(ifelse(data.test$pred$anomaly_score >=0.6, "outlier", "normal")) 
+  #arbitrarily setting score>0.6 as an outlier
+
+t <- as.numeric(data.test[nrow(data.test),]$timestamp - data.test[1,]$timestamp) 
+#sets t as the number of minutes in the activity
+if (t > 10){ #sets first 2 minutes to normal because outlier detection can't account for slow component
+  slowcomp <- data.test$timestamp[5] + 120 #add 2 minutes to outlier detection to account for slow component
+  #The thinking for this is that with a long enough activity, it'll incorrectly flag the slow comp as an outlier
+  #With shorter activities, hopefully that won't be a problem
+  r <- which(data.test$timestamp == slowcomp)
+  data.test$outlier[1:r] <- "normal" 
+ }
+
+ggplot(data.test, aes(x = timestamp, y = heart_rate, color = outlier)) + 
+  geom_point(shape = 1, alpha = 0.5) +
+  labs(x = "x", y = "y") +
+  labs(alpha = "", colour="Legend") #plot highlighting outliers
+
+densityplot(data.test$pred$anomaly_score)
+table(data.test$pred$anomaly_score) #come back to this - set the cutoff as the value with the top 1-2%, i.e. top 15 values in a 1500 row record
+quantile(data.test$pred$anomaly_score)
+density(data.test$pred$anomaly_score)
+summary(data.test$pred$anomaly_score)
+nrow(data.test[(which(data.test$pred$anomaly_score >=0.66)),c(3,5,8,9,11)])
+data.test[1,c(3,5)]
+class(test)
+
+
+
+
+
+
 
