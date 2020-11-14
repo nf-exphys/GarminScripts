@@ -11,9 +11,6 @@ FilesToRead <- list.files(path = ".\\HRV Files to be Read", pattern = ".txt", fu
 #Sets n as the number of files to be read
 n <- length(FilesToRead)
 
-#Creates an empty list to be filled with data frames
-#hrvdb <- vector('list', n)
-#i=150
 #Read in files from FilesToRead; convert read-in file to a data frame and store it in a list; 
 for (i in 1:n) {
   HRVdata <- CreateHRVData() #Create data structure to store HRV data
@@ -47,7 +44,7 @@ for (i in 1:n) {
   }
   
 }
-write.csv(timeanalysis, file = "Jan20toSept20HRVdata.csv")
+write.csv(timeanalysis, file = "Jan20toMidNov20HRVdata.csv")
 
 ##### Frequency analysis #####
 #NEXT STEPS: figure out frequency and spectral analyses
@@ -66,3 +63,6 @@ Interp.HRVdata <- CalculatePowerBand(Interp.HRVdata, indexFreqAnalysis = 1,
 PlotPowerBand(Interp.HRVdata)
 
 ##### Plotting RMSD #####
+library(ggplot2); library(zoo)
+colnames(timeanalysis)[1] <- "datetime"
+
