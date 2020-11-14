@@ -63,6 +63,38 @@ Interp.HRVdata <- CalculatePowerBand(Interp.HRVdata, indexFreqAnalysis = 1,
 PlotPowerBand(Interp.HRVdata)
 
 ##### Plotting RMSD #####
-library(ggplot2); library(zoo)
+library(ggplot2); library(zoo); library(tidyverse); library(roll)
 colnames(timeanalysis)[1] <- "datetime"
+error <- which(timeanalysis$rMSSD > 150)
+timeanalysis <- timeanalysis[-error,]
+timeanalysis$rMSSD <- as.numeric(timeanalysis$rMSSD)
+timeanalysis$lnRMSSD <- log(timeanalysis$rMSSD)
+timeanalysis <- timeanalysis %>% mutate(RMSSD7d = roll_mean(rMSSD, width = 7),
+                            RMSSD2mon = roll_mean(rMSSD, width = 30),
+                            RMSSD2monSD = 2*roll_sd(RMSSD2mon, width = 30),
+                            RMSDD2monHi = (RMSSD2mon + RMSSD2monSD),
+                            RMSDD2monLo = (RMSSD2mon - RMSSD2monSD)
+                            )
+timeanalysis <- timeanalysis %>% mutate(lnRMSSD7d = roll_mean(lnRMSSD, width = 7),
+                                        lnRMSSD2mon = roll_mean(lnRMSSD, width = 30),
+                                        lnRMSSD2monSD = 2*roll_sd(lnRMSSD2mon, width = 30),
+                                        lnRMSDD2monHi = (lnRMSSD2mon + lnRMSSD2monSD),
+                                        lnRMSDD2monLo = (lnRMSSD2mon - lnRMSSD2monSD)
+)
 
+#plot of rMSSD
+  ggplot(data = timeanalysis[96:236,], aes(datetime)) + 
+    geom_bar(aes(y= rMSSD, colour = "daily"), stat = 'identity') +
+    geom_line(aes(y = RMSSD2mon, colour = "2mon")) +
+    geom_ribbon(aes(ymin=RMSSD2mon-RMSSD2monSD, ymax=RMSSD2mon+RMSSD2monSD), fill="azure2", alpha=0.80) + 
+    geom_line(aes(y = RMSSD7d, colour = "7d"))
+    
+#plot of ln(rMSSD)
+  ggplot(data = timeanalysis[96:236,], aes(datetime)) + 
+    geom_line(aes(y = lnRMSSD2mon, colour = "2mon")) +
+    geom_ribbon(aes(ymin=lnRMSSD2mon-lnRMSSD2monSD, ymax=lnRMSSD2mon+lnRMSSD2monSD), fill="azure2", alpha=0.80) +
+    geom_line(aes(y = lnRMSSD7d, colour = "7d")) + 
+    geom_bar(aes(y= lnRMSSD, colour = "daily"), stat = 'identity') + 
+    #ylim(3,5)
+  
+stat_summary()
