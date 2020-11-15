@@ -1,10 +1,10 @@
-library(tidyverse); library(timetk); library(tibbletime); library(tidyquant)
-library(keras)
+library(tidyverse); library(mice); library(zoo)
 
-load(file = "FitDFCleanSort2020-10-13.Rdata")
+load(file = "./FitDFCleanSort2020-10-12.Rdata")
+Fit.DF2 <- Fit.DF
 load(file = "./Objects/FitDFCleanSort2020-08-24.Rdata")
 data <- c(Fit.DF, Fit.DF2)
-
+data <- data[-1350] #delete repeat file
 data.test <- data[[1373]]$record #have to do this for now because it throws an error if you feed mice a data frame
 if (length(which(is.na(data.test$heart_rate))) > 0) { #if there are NAs 
   miceMod <- mice(data.test, method = "rf", print = F) 
@@ -12,27 +12,40 @@ if (length(which(is.na(data.test$heart_rate))) > 0) { #if there are NAs
   data.test <- complete(miceMod)
   #applies those values to data.test
 }
-iforest<- isolationForest$new() #apply iforest algorithms
+data.test <- data.test %>% #adds column with 15 second altitude difference
+  mutate(delta.alt = diff(zoo(data.test$altitude), lag = 15, na.pad=TRUE))
+data.test$delta.alt[1:15] <- 0 #set NAs created by diff to 0, mice doesn't work otherwise
+
+library(solitude)
+iforest<- isisolationForest$new() #apply iforest algorithms
 iforest$fit(data.test)
 
 data.test$pred <- iforest$predict(data.test)
 data.test$outlier <- as.factor(ifelse(data.test$pred$anomaly_score >=0.595, "outlier", "normal")) 
   #arbitrarily setting score>0.6 as an outlier
 
-#Figure out where the HR data is accurate and where it's not
-which(grepl("08:25:00", data.test$timestamp)) 
-which(grepl("08:37:00", data.test$timestamp)) 
-which(grepl("09:32:00", data.test$timestamp)) 
+#find outliers after 3 minutes, set them to NA, and then apply MICE to predict them
+startime <- data.test$timestamp[1]
+outliers <- which(data.test$outlier == "outlier" & data.test$timestamp > (startime+180))
+compdata <- data.test[,c(5, 9:11)] #make a copy of HR, timestamp, pred, and outlier for comparison
+data.test$heart_rate[outliers] <- NA
+data.test <- data.test[, -which(names(data.test) %in% c("pred", "outlier"))]
+miceMod <- mice(data.test, method = "rf", print = F) 
+  #calculates values to impute using random forest, doesn't print output
+data.test <- complete(miceMod)
+  #applies those values to data.test
 
-#plot the HR data to help decide
-ggplot(data.test, aes(x = timestamp, y = heart_rate, color = outlier)) + 
-  geom_point(shape = 1, alpha = 0.5) +
-  labs(x = "x", y = "y") +
-  labs(alpha = "", colour="Legend") #plot highlighting outliers
+#Compare imputed HR values to original HR values
+compdata <- cbind(compdata, data.test$heart_rate)
+colnames(compdata)[5] <- "miceHR"
+compdata %>% mutate(diff = heart_rate - miceHR)
+ggplot(data = compdata[outliers,], aes(timestamp)) + 
+  geom_point(aes(y=heart_rate), colour = "red") + #plots original values for outliers in red
+  geom_point(aes(y=miceHR), colour = "blue") #and imputed values in blue
+#Verifies anomalies can be reasonably corrected
 
-#Only keep this data because HR monitor was accurate here
-data.test <- data.test[931:4100,]
 
+##### Old code #####
 data.test <- data.test %>%  tk_tbl() %>% as_tbl_time(index = timestamp)
 tk_t
 data.test %>%
