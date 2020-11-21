@@ -9,6 +9,8 @@ remove(Fit.DF, Fit.DF2)
 n <- length(data)
 
 #Approach 1: Put lap start and end times in nested list, find speed/HR based on lap averages
+  #create function for pulling start times (don't need end times) and calculating time to next start or time to last row
+  #
 start_times <- data[[1]]$lap$start_time
 end_times <- data[[1]]$lap$timestamp
 m <- length(start_times)
