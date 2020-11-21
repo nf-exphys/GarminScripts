@@ -1,7 +1,8 @@
-library(shiny); library(tidyverse)
-
-df <- read.csv(file = "Post run data.csv", header = T)
-df %>% mutate(date = as.Date(date, origin = "1970-01-01")) #need to fix this
+library(shiny)
+myfile <- file.path("C:\\Users\\Nick.Foreman\\Desktop\\Nick Mobile Folders\\School\\Fall 2020 classes\\R Files\\GarminData\\PostRunShiny\\data\\Post run data.csv")
+df <- read.csv(file = myfile, 
+               header = T)
+df$date <- as.Date(anytime::anydate(df$date), origin = "1970-01-01") #might not need this line
 
 fastfed <- list("fed", "fasted")
 poststrength <- list("yes", "no")
@@ -15,26 +16,30 @@ workoutlist <- list("none", "intervals <60 sec.", "intervals 1-3 min", "interval
 ui <- function(request){
   fluidPage( #Creates user interface
   titlePanel("Nick's Post Run Data Collection Form"),
-  verticalLayout( #still doesn't work
+  
   fluidRow(
-    title = "Quick Questions",
+    column(6, offset = 1,
+          wellPanel(
+    #Quick questions
     dateInput("date", "What's the date of this run?", autoclose = T),
     selectInput("fedstat", "Were you fasted or fed?", fastfed),
     selectInput("strength", "Did you do core after your run?", poststrength),
-    selectInput("hraccuracy", "How accurate was the HR data?", HRacc, multiple = T)
-   ),
-  fluidRow(
+    selectInput("hraccuracy", "How accurate was the HR data?", HRacc, multiple = T),
+          )
+     ),
+    column(6, offset = 1, 
+           wellPanel(
     title = "Type of Run, Type of Workout, & sRPE",
     selectInput("daytype", "What kind of run did you do today?", daylist),
     selectInput("workouttype", "What kind of workout did you do today?", workoutlist),
     numericInput("srpevalue", "Session RPE (sRPE)", value = 0, min = 0, max = 2000, step = 10),
-   ),
-  fluid = T),
-  actionButton("submit", label = "Submit"),
-  dataTableOutput("TheData"),
-  bookmarkButton()
- )
-}
+         )
+     ),
+    actionButton("submit", label = "Submit"), #creates a Submit button
+    dataTableOutput("TheData"), #outputs data in a table
+    bookmarkButton() #adds a bookmark button
+   )
+ )}
 
 fields <- list("date", "fedstat", "strength", "hraccuracy", "daytype", "workouttype", "srpevalue")
 
@@ -58,3 +63,13 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui, server, enableBookmarking = "url") #bookmarking still doesn't work
+library(rsconnect)
+setAccountInfo(name='nfexphys', 
+                          token='C720CCC9EFBF61756F35DDA5CC483AB2', 
+                          secret='U2rBHtFyTrdFEPdA3OpSLjcQIYxNOxSwjhSZ9x7W')
+deployApp('C:\\Users\\Nick.Foreman\\Desktop\\Nick Mobile Folders\\School\\Fall 2020 classes\\R Files\\GarminData\\PostRunShiny\\',
+                     forceUpdate = T)
+#rsconnect::deployApp(appDir = 'C:\\Users\\Nick.Foreman\\Desktop\\Nick Mobile Folders\\School\\Fall 2020 classes\\R Files\\GarminData\\PostRunShiny\\', 
+#                     appFiles = c('.\\data\\Post run data.csv'), forceUpdate = T, lint = T)
+
+rsconnect::showLogs(appPath = "./PostRunShiny/")
