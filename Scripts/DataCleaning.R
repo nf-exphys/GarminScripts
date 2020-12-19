@@ -1,4 +1,4 @@
-library(tidyverse, quietly = T)
+library(tidyverse, warn.conflicts = F)
 ##### Load 2020 Data #####
   #Long term, I think calling this data from SQL is probably the way to go
   #So much of what I'm doing is dependent on relational data
@@ -30,7 +30,8 @@ colnames(repeat_check) <- c("start", "num")
 setdiff(which(duplicated(repeat_check$start) == T), which(repeat_check$start=="1969-12-31 17:59:59"))
   #Compares duplicates in repeat_check to lines in repeat_check from manually created activities, which have date of 1969
   #If setdiff returns nothing, we know all of the repeats are due to manually created activities
-  #If setdiff returns something, such as 1351, run this to remove it: data[1351] <- NULL
+  #If setdiff returns something, such as 1351, run this to remove it: 
+data[1351] <- NULL
 
 #Checking to make sure every item is uploaded in sequential order
 repeat_check$progress <- as.logical(factor(ifelse(repeat_check$start > lag(repeat_check$start),'T','F')))
@@ -75,6 +76,16 @@ sum_data <- data %>% #combine sum data into one big data frame
   map(., "sum_data") %>%
   bind_rows(.id = "data_index")
 
+useless_cols <- sum_data %>% 
+  lapply(., unique) %>% #finds number of unique values per column
+  lengths(., use.names = T) %>% #finds length of each item in the list
+  as.data.frame() %>% #converts to d.f.
+  rownames_to_column() %>% #adds row name(which is the previous column name)
+  rename(num_unique=".") %>% #fixes column name
+  filter(num_unique == 1) %>% pull(rowname) #outputs list of columns where # unique = 1
+
+sum_data <- sum_data %>% select(-c(useless_cols))
+
 unique(sum_data$name) #shows options for name
 
 not_running_in_data <- sum_data %>% #find events where the name isn't Run
@@ -107,7 +118,7 @@ record <- data %>% map(.,"record") %>%
  #split timestamp into date and time
 split_date_time <- function(x){
   x %>%  mutate(
-    date = as.Date(timestamp),
+    date = as.Date(timestamp, tz="America/Chicago"),
     time = format(timestamp, "%H:%M:%S")
   )
   
@@ -123,31 +134,109 @@ device_info <- split_date_time(device_info)
   #Input date - might need to merge same date first or create warning if multiple activities on same date
   #Plot of HR, pace, table of key metrics from summary data, and lap-by-lap data
   #Then have some way to say "Yes, this is accurate", "This is worth imputing", or "No this is garbage"
+library(gridExtra); library(svDialogs)
 
-p_hr <- record %>%
-  filter(date == "2020-07-01") %>%
-  ggplot(., aes(x=time, y=heart_rate, group=1)) + geom_path()
+#Could be good to add background shading to plot to show HR zones 
+  #https://stackoverflow.com/questions/61161960/how-do-i-add-shaded-backgrounds-to-ggplot
 
-p_speed <- record %>%
-  filter(date == "2020-07-01") %>%
-  ggplot(., aes(x=time, y=speed, group=1)) + geom_path() + ylim(2,4)
+#adds accuracy and impute columns, fills with NAs
+sum_data <- sum_data %>% add_column(hr_all_acc=NA, hr_impute=NA)
 
+select_date <- function(mm,dd,yyyy){
+  select_date <- paste0(yyyy, "-", mm, "-", dd)
+  return(select_date)
+} #needed date in the Global Environment
+  #so I wrote a separate function for it
+summary_plots <- function(my_date){
+  
+#Condensing record data for the specific day into 3 second intervals to improve plotting
+record_by_threes <- record %>% 
+  filter(date == my_date) %>% #filter by date
+  mutate(threes = (1:nrow(.) %/% 3)+1) %>% #not quite sure what this %/% does, but it seems to work
+  #adding 1 so I can use threes in place of time
+  group_by(threes) %>% #group data into sets of 3 seconds
+  summarise(speed = mean(speed), #average data over the 3 seconds
+      heart_rate=as.integer(mean(heart_rate))) %>%
+  round(., 2) %>% mutate(threes = threes *3)
+
+p_hr <- record_by_threes %>%
+  ggplot(., aes(x=threes, y=heart_rate, group=1)) + geom_path(color = 'red') + xlab("time (3 sec int.)")
+
+p_speed <- record_by_threes %>%
+  mutate(speed_min.mi = 60/(speed * 2.23694)) %>% #convert to min/mi
+  filter(speed_min.mi < 15) %>% #get rid of outliers
+  ggplot(., aes(x=threes, y=speed_min.mi, group=1)) + geom_path(color = 'blue') + 
+  scale_y_continuous(trans = "reverse") + xlab("time (3 sec int.)")
+  
 p_sum <- sum_data %>%
   select(-caret::nearZeroVar(.)) %>% #removes near zero variance columns and gives meaningful info
-  filter(date == "2020-07-01") %>%
-  select(avg_heart_rate, avg_speed, max_heart_rate.1, TimeMinutes, total_distance) %>%
+  filter(date == my_date) %>%
+  select(avg_heart_rate, avg_speed, total_distance, TimeMinutes) %>%
+  mutate(avg_speed = 60/(avg_speed * 2.23694), total_distance = total_distance/1609.34) %>%
+  rename(dist = total_distance, avg_HR=avg_heart_rate) %>% 
+  round(., 2) %>%
   gridExtra::tableGrob()
 
 p_lap <- lap %>%
   select(-caret::nearZeroVar(.)) %>%
-  filter(date == "2020-07-01") %>%
-  select(avg_heart_rate, avg_speed, max_speed, total_distance, total_timer_time) %>%
-  gridExtra::tableGrob()
+  filter(date == my_date) %>%
+  select(avg_heart_rate, avg_speed, total_distance, total_timer_time) %>%
+  mutate(avg_speed = 60/(avg_speed * 2.23694),
+         lap_time = (total_timer_time/60), #convert to minutes
+         total_distance = total_distance/1609.34) %>% #convert to miles
+  rename(dist = total_distance, avg_HR=avg_heart_rate) %>% 
+  select(-total_timer_time) %>% #get rid of total timer time
+  round(., 2)
 
-gridExtra::grid.arrange(p_hr, p_speed,p_sum,p_lap, nrow=2, as.table=T, padding=T)
-#Future ideas:
+if(nrow(p_lap) > 8){
+  p_lap <- bind_rows(head(p_lap, 6), tail(p_lap, 2))
+} #limiting the size of the lap tables for easier viewing
 
-#Add variable elapsed time in record
+p_lap <- tableGrob(p_lap) #convert shrunk-down table to plotable object
+
+print(grid.arrange(p_hr,p_sum,p_speed,p_lap,  #return plots in 2x2 format
+                               nrow=2, as.table=T, padding=T))
+
+Sys.sleep(5) #wait 10 seconds to give me time to look at the plots
+
+#Then display pop-up box asking about HR accuracy
+hr_all_acc_value <- dlgInput("Is all HR data accurate? Enter 'yes' or 'no'", default="yes")$res
+
+Sys.sleep(5) #wait 5 sec to give me time to answer
+
+#if HR data isn't accurate, prompt about imputing
+hr_impute_value <- NA
+if (hr_all_acc_value == "no"){ 
+hr_impute_value <- dlgInput("Should this HR data be imputed? Enter 'yes' or 'no'", default="no")$res
+} 
+
+#Add information to sum_data
+
+#gives data_index value for row in sum_data
+add_HR_info_here <- sum_data %>% filter(date == d) %>% pull(data_index) 
+
+  #if data hasn't already been entered for rows of sum_data being plotted
+if(all(is.na(sum_data[add_HR_info_here,] %>% select(hr_all_acc, hr_impute))) == T){
+  #sets input of dialog box to hr_all_acc & hr_impute for specific rows
+  sum_data[add_HR_info_here,]$hr_all_acc <- hr_all_acc_value
+  sum_data[add_HR_info_here,]$hr_impute <- hr_impute_value
+} else{print(
+    paste0("Data has already been written for columns with data index of:", 
+           add_HR_info_here))}
+
+return(sum_data)
+} 
+
+my_date <- select_date(12, 10, 2020)
+sum_data <- summary_plots(my_date) 
+  #pretty slow, doesn't work great when there are lots of laps
+  #Merges data from the same date together, isn't always perfect
+  #Doesn't work returning sum_data to Global Environment
+
+
+#### Future ideas: ####
+
+#Add elapsed time as a variable in record
   #Would make plotting easier
   #Might also make prediction of HR data easier, since the model won't understand time of day as well as elapsed time
   #Tough part would be syncing it to lap data and other timestamps. Might need some SQL join logic for that
