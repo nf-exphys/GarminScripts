@@ -31,7 +31,7 @@ for (i in 1:n) {
     #filters within physiological ranges
   HRVtime <- CreateTimeAnalysis(HRVdata, size = 5) #performs simple time analysis with size set to default
   if (length(HRVdata$Beat$Time) > 400){ #if there are lots of rows (i.e. it's exercise not resting)
-    print(i) #As of 10/19/20, this if statement doesn't do anything - need to update
+    print(i) 
     #next #skips over copying data into dataframe
   }
   if (i == 1){ #the first time through, just make the data frame
@@ -44,7 +44,7 @@ for (i in 1:n) {
   }
   
 }
-write.csv(timeanalysis, file = "Jan20toMidNov20HRVdata.csv")
+write.csv(timeanalysis, file = "Jan20toMidDec20HRVdata.csv")
 
 ##### Frequency analysis #####
 #NEXT STEPS: figure out frequency and spectral analyses
@@ -75,6 +75,7 @@ timeanalysis <- timeanalysis %>% mutate(RMSSD7d = roll_mean(rMSSD, width = 7),
                             RMSDD2monHi = (RMSSD2mon + RMSSD2monSD),
                             RMSDD2monLo = (RMSSD2mon - RMSSD2monSD)
                             )
+
 timeanalysis <- timeanalysis %>% mutate(lnRMSSD7d = roll_mean(lnRMSSD, width = 7),
                                         lnRMSSD2mon = roll_mean(lnRMSSD, width = 30),
                                         lnRMSSD2monSD = 2*roll_sd(lnRMSSD2mon, width = 30),
@@ -82,19 +83,22 @@ timeanalysis <- timeanalysis %>% mutate(lnRMSSD7d = roll_mean(lnRMSSD, width = 7
                                         lnRMSDD2monLo = (lnRMSSD2mon - lnRMSSD2monSD)
 )
 
-#plot of rMSSD
-  ggplot(data = timeanalysis[96:236,], aes(datetime)) + 
+#plot of rMSSD with 7d and 2 month +/- 2SD shading
+  ggplot(data = timeanalysis[111:nrow(timeanalysis),], aes(datetime)) + 
     geom_bar(aes(y= rMSSD, colour = "daily"), stat = 'identity') +
     geom_line(aes(y = RMSSD2mon, colour = "2mon")) +
     geom_ribbon(aes(ymin=RMSSD2mon-RMSSD2monSD, ymax=RMSSD2mon+RMSSD2monSD), fill="azure2", alpha=0.80) + 
-    geom_line(aes(y = RMSSD7d, colour = "7d"))
+    geom_line(aes(y = RMSSD7d, colour = "7d")) 
+    #No need to add coord_cartesian on this one, doesn't improve view
     
-#plot of ln(rMSSD)
-  ggplot(data = timeanalysis[96:236,], aes(datetime)) + 
+#plot of ln(rMSSD) with 7d and 2 month +/- 2SD shading
+  ggplot(data = timeanalysis[111:nrow(timeanalysis),], aes(datetime)) + 
     geom_line(aes(y = lnRMSSD2mon, colour = "2mon")) +
     geom_ribbon(aes(ymin=lnRMSSD2mon-lnRMSSD2monSD, ymax=lnRMSSD2mon+lnRMSSD2monSD), fill="azure2", alpha=0.80) +
     geom_line(aes(y = lnRMSSD7d, colour = "7d")) + 
     geom_bar(aes(y= lnRMSSD, colour = "daily"), stat = 'identity') + 
-    #ylim(3,5)
+    coord_cartesian(ylim=c(3.5,5))
+  
+#last 3 days of rmssd and lnRMSSD timeanalysis[275:nrow(timeanalysis),13:23]
   
 stat_summary()
