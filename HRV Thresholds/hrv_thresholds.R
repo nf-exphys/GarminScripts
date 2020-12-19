@@ -20,6 +20,7 @@ ggplot(data = garminfile$record[400:3239,], aes(x=timestamp, y=heart_rate)) + ge
 ggplot(data = garminfile$record, aes(x=timestamp, y=speed)) + geom_point()
 
 hrv <- garminfile$hrv$time #set the hrv data as its own object for more succinct code
+length(hrv)
 
 rr_data <- matrix(ncol=1)
 for (i in 1:length(hrv)){
@@ -36,6 +37,8 @@ for (i in 1:length(hrv)){
     select(rr)
   }
 }
+nrow(rr_data)
+
 ggplot(data = rr_data, aes(y=rr, x=row_number(rr))) + geom_point()
 
 threshold <- 0.10 #apply Marco's recommended threshold detection
