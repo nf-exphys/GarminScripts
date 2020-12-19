@@ -103,3 +103,68 @@ record <- data %>% map(.,"record") %>%
 
 #Not ready for HRV data yet - need to figure out how to handle/process it first
 
+##### Checking accuracy of HR data #####
+ #split timestamp into date and time
+split_date_time <- function(x){
+  x %>%  mutate(
+    date = as.Date(timestamp),
+    time = format(timestamp, "%H:%M:%S")
+  )
+  
+}
+#applies function to each data frame
+lap <- split_date_time(lap)
+event <- split_date_time(event)
+record <- split_date_time(record)
+sum_data <- split_date_time(sum_data)
+device_info <- split_date_time(device_info)
+
+#Next step is going to have to be to make a function to give me a Garmin Connect Like output
+  #Input date - might need to merge same date first or create warning if multiple activities on same date
+  #Plot of HR, pace, table of key metrics from summary data, and lap-by-lap data
+  #Then have some way to say "Yes, this is accurate", "This is worth imputing", or "No this is garbage"
+
+p_hr <- record %>%
+  filter(date == "2020-07-01") %>%
+  ggplot(., aes(x=time, y=heart_rate, group=1)) + geom_path()
+
+p_speed <- record %>%
+  filter(date == "2020-07-01") %>%
+  ggplot(., aes(x=time, y=speed, group=1)) + geom_path() + ylim(2,4)
+
+p_sum <- sum_data %>%
+  select(-caret::nearZeroVar(.)) %>% #removes near zero variance columns and gives meaningful info
+  filter(date == "2020-07-01") %>%
+  select(avg_heart_rate, avg_speed, max_heart_rate.1, TimeMinutes, total_distance) %>%
+  gridExtra::tableGrob()
+
+p_lap <- lap %>%
+  select(-caret::nearZeroVar(.)) %>%
+  filter(date == "2020-07-01") %>%
+  select(avg_heart_rate, avg_speed, max_speed, total_distance, total_timer_time) %>%
+  gridExtra::tableGrob()
+
+gridExtra::grid.arrange(p_hr, p_speed,p_sum,p_lap, nrow=2, as.table=T, padding=T)
+#Future ideas:
+
+#Add variable elapsed time in record
+  #Would make plotting easier
+  #Might also make prediction of HR data easier, since the model won't understand time of day as well as elapsed time
+  #Tough part would be syncing it to lap data and other timestamps. Might need some SQL join logic for that
+
+#Merge runs from the same day unless separated by 4 ish hours
+  #Not sure what I'd do with the data index here... 
+  #Best idea might be to keep first one but then create another variable with all of them stored as a list
+
+#Create lagged elevation (10 seconds?) 
+  #Would need to account for crossing the river on Dinkytown greenway lol
+  #Long-term this could be a way to create grade-adjusted pace using Minetti equations
+  #for now it would just be helpful to track HR response
+
+#Take accurate HR data and divide into train/test for NN to see if I can predict HR given pace/lagged elevation
+#Take accurate HR data and try to impute HR data that was marked as worth imputing
+#If I'm able to get corrected HR data, I should re-calculate TRIMP
+  
+#Compare day-before or 2-day-before TRIMP to morning HRV
+    #Might get stronger correlations if you classify TRIMP into easy/medium/hard
+    #Do the same thing for TRIMP/hr
