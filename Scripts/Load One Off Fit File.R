@@ -4,8 +4,8 @@ library(fitFileR); library(data.table); library(tidyverse)
 loadfile <- "E:\\GARMIN\\ACTIVITY\\AC8F0553.FIT" #load file straight from the watch
 GarminFile <- readFitFile(loadfile)
 
-loadfile2 <- "HRVtest.FIT"
-GarminFile2 <- readFitFile(loadfile2)
+loadfile3 <- "./Data/5868513078/5868513078_ACTIVITY.fit"
+GarminFile3 <- readFitFile(loadfile3)
 
 #GarminFile.lapp <- lapply(GarminFile2, data.frame, stringsAsFactors = FALSE)
 #GarminFile <- lapply(GarminFile, data.frame, stringsAsFactors = FALSE)

@@ -1,0 +1,30 @@
+#Set autodownload location and disable prompts for download in Chrome
+#Navigate to most recent activity in Garmin Connect
+#Press F12
+#Paste code below into console and press enter
+
+jQuery.getJSON(
+    'https://connect.garmin.com/modern/proxy/activitylist-service/activities/search/activities?limit=200',
+    function(act_list)
+    {
+        var t=0;
+        act_list.forEach(
+        function(act)
+            {
+                setTimeout(function() {
+                    console.dir(act['activityId'], act['activityName'], act['startTimeLocal']);
+                    location = 'https://connect.garmin.com/modern/proxy/download-service/files/activity/' + act['activityId'];
+                }, t+=5000);
+            }
+        );
+    }
+);
+
+#Then use 7-zip to unzip all files to a common location
+#Unfortunately, this makes a bunch of folders with one fit file in each
+#This will extract the files out of the folders: 
+	#Just go to the top-level source folder (whose contents you want to copy), 
+	#and in the Windows Explorer search box type * (just a star or asterisk). 
+	#This will display every file and sub-folder under the source folder. 
+	#Now just sort by Type to group all files together, select them all, 
+	#then cut/copy and paste in the destination dir.
