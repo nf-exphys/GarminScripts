@@ -44,7 +44,8 @@ for (i in 1:n) {
   }
   
 }
-write.csv(timeanalysis, file = "Jan20toMidDec20HRVdata.csv")
+warnings()
+write.csv(timeanalysis, file = "Jan20_Dec20_HRVdata.csv")
 
 ##### Frequency analysis #####
 #NEXT STEPS: figure out frequency and spectral analyses
