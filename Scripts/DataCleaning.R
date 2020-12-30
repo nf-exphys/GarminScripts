@@ -255,5 +255,60 @@ sum_data <- summary_plots(my_date)
 #If I'm able to get corrected HR data, I should re-calculate TRIMP
   
 #Compare day-before or 2-day-before TRIMP to morning HRV
-    #Might get stronger correlations if you classify TRIMP into easy/medium/hard
-    #Do the same thing for TRIMP/hr
+  #Might get stronger correlations if you classify TRIMP into easy/medium/hard
+  #Do the same thing for TRIMP/hr
+sum_data %>% filter(TRIMP <0) 
+nrow(sum_data)
+hist(sum_data$TRIMP, breaks = 30)
+
+#combine sum_data by date
+#long-term it'd be better to do this with record data
+#this just looks at Fall 2020 season 
+
+merge_sum_data <- sum_data %>% as_tibble() %>%
+  filter(start_time > "2020-09-06") %>%
+  select(date, TimeMinutes, TRIMP, TRIMP.hour, avg_heart_rate, max_heart_rate.1) %>%
+  #group_by(date) %>%
+  summarise(date = date,
+    minutes = TimeMinutes,
+    TRIMP_sum = TRIMP*TimeMinutes/60,
+    TRIMP_hr_sum = TRIMP.hour*TimeMinutes/60,
+    avg_HR = avg_heart_rate*TimeMinutes/60, 
+    max_HR = max_heart_rate.1*TimeMinutes/60) %>%
+  group_by(date) %>%
+  summarise(
+    #date = date,
+    across(everything(), sum) #might artificially inflate TRIMP of multi-hour activities? 
+  )
+
+#source("Test HRV package.R")
+colnames(timeanalysis)
+
+merge_hrv_data <- timeanalysis %>%
+  separate(col = datetime, into = c("date", "time"), sep = " ") %>%
+  group_by(date) %>%
+  select(date, time, rMSSD, lnRMSSD) %>%
+  mutate(date = lubridate::as_date(date)) %>%
+  filter(date > "2020-09-06")
+
+hrv_sum_data <- merge(x=merge_sum_data, y=merge_hrv_data, all.x = T)
+
+hrv_sum_data %>% janitor::get_dupes(date)
+
+View(hrv_sum_data)
+hist(hrv_sum_data$max_HR)
+
+hrv_sum_data <- hrv_sum_data %>%
+  mutate(
+    lead1 = lead(rMSSD),
+    lead2 = lead(rMSSD, 2),
+    lead3 = lead(rMSSD, 3),
+    lead4 = lead(rMSSD, 4),
+    lead5 = lead(rMSSD, 5)
+         )
+
+library(colorspace)
+hrv_sum_data %>%
+  #filter(TRIMP_sum < 150) %>% #realistic values 
+ggplot(data = ., aes(x=minutes, y=lead2)) + geom_point(aes(alpha = 0.3)) + geom_smooth() + 
+  ylab("rMSSD Two Days Later") + xlab("Minutes Run")
