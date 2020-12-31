@@ -310,5 +310,5 @@ hrv_sum_data <- hrv_sum_data %>%
 library(colorspace)
 hrv_sum_data %>%
   #filter(TRIMP_sum < 150) %>% #realistic values 
-ggplot(data = ., aes(x=minutes, y=lead2)) + geom_point(aes(alpha = 0.3)) + geom_smooth() + 
+ggplot(data = ., aes(x=minutes, y=lead2)) + geom_point(aes(alpha = 0.3)) + geom_smooth(method = "loess") + 
   ylab("rMSSD Two Days Later") + xlab("Minutes Run")
