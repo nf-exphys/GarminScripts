@@ -149,6 +149,10 @@ select_date <- function(mm,dd,yyyy){
   #so I wrote a separate function for it
 summary_plots <- function(my_date){
   
+  if(nrow(record %>% filter(date == my_date)) == 0){
+    print("No summary data for this date")
+    break}
+  
 #Condensing record data for the specific day into 3 second intervals to improve plotting
 record_by_threes <- record %>% 
   filter(date == my_date) %>% #filter by date
@@ -197,12 +201,10 @@ p_lap <- tableGrob(p_lap) #convert shrunk-down table to plotable object
 print(grid.arrange(p_hr,p_sum,p_speed,p_lap,  #return plots in 2x2 format
                                nrow=2, as.table=T, padding=T))
 
-Sys.sleep(5) #wait 10 seconds to give me time to look at the plots
+Sys.sleep(5) #wait 5 sec for plots to appear
 
 #Then display pop-up box asking about HR accuracy
 hr_all_acc_value <- dlgInput("Is all HR data accurate? Enter 'yes' or 'no'", default="yes")$res
-
-Sys.sleep(5) #wait 5 sec to give me time to answer
 
 #if HR data isn't accurate, prompt about imputing
 hr_impute_value <- NA
@@ -213,7 +215,7 @@ hr_impute_value <- dlgInput("Should this HR data be imputed? Enter 'yes' or 'no'
 #Add information to sum_data
 
 #gives data_index value for row in sum_data
-add_HR_info_here <- sum_data %>% filter(date == d) %>% pull(data_index) 
+add_HR_info_here <- sum_data %>% filter(date == my_date) %>% pull(data_index) 
 
   #if data hasn't already been entered for rows of sum_data being plotted
 if(all(is.na(sum_data[add_HR_info_here,] %>% select(hr_all_acc, hr_impute))) == T){
@@ -227,8 +229,10 @@ if(all(is.na(sum_data[add_HR_info_here,] %>% select(hr_all_acc, hr_impute))) == 
 return(sum_data)
 } 
 
-my_date <- select_date(12, 10, 2020)
-sum_data <- summary_plots(my_date) 
+load(file = "Objects/sum_data_HRacc") #load previous sum data to add to it
+my_date <- select_date(mm=08, yyyy=2020, dd=01)
+sum_data <- summary_plots(my_date)
+save(sum_data, file = "Objects/sum_data_HRacc")
   #pretty slow, doesn't work great when there are lots of laps
   #Merges data from the same date together, isn't always perfect
   #Doesn't work returning sum_data to Global Environment
