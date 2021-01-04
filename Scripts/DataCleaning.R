@@ -59,7 +59,7 @@ for (i in 1:length(data)){
   } else {ifelse(all(diff(match(goal, check)) > 0)==F, print(i), next)} 
   #if no HRV data, compare to goal and print i if it doesn't match
 }
-
+#HRV data in 218 to 245
 data[84:85] <- NULL #removed based on printed i above
   #Seems like the problem is Connect-created files
 
