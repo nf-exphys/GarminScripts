@@ -3,3 +3,4 @@
 .RData
 .Ruserdata
 ExportedExcelCSVs/record.txt
+*.txt
