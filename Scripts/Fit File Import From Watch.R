@@ -52,7 +52,8 @@ previous_files <- list.files(path = "./Data/ExportedRunData/Old_Fit_Files/", ful
 new_files <- list.files(path = watch_path, full.names=F, pattern = "*.fit", ignore.case=T)
 
 #List of files to be read in, adds file path
-files_to_read <- setdiff(new_files, previous_files)
+  #Compares old files (already read in) to new files (currently on GPS watch)
+files_to_read <- setdiff(new_files, previous_files) 
 files_to_read <- paste0(watch_path, files_to_read)
 
 #Sets n as the number of files to be read
