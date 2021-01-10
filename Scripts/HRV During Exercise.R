@@ -16,6 +16,19 @@ hrv <- easy_run$hrv$time
   #Example: CSV from 01/09/2021 easy long run with Dylan
 hrv <- read_csv(file = "./Data/ExportedRunData/Cleaned_CSVs/2021_01_09 10_37_24 hrvdata.csv")
 
+#Read in multiple CSVs
+hrv_files <- list.files(path = "./Data/ExportedRunData/Cleaned_CSVs/", 
+                        pattern="* hrvdata.csv", full.names = T)
+
+read_csv_filename <- function(filename){
+  ret <- read_csv(filename)
+  ret$Source <- filename #EDIT
+  ret
+}
+
+hrv_list <- lapply(hrv_files, read_csv_filename)
+
+
 rr_data <- matrix(ncol=1)
 #Pulls together RR intervals where RR is less than 1 (which it should be for this ride based on collab notebook)
 for (i in 1:length(hrv)){
@@ -86,7 +99,7 @@ PlotNIHR(nihr) #better
 
 #Split data and find DFA
 library(nonlinearTseries)
-step <- 300 #number of seconds per window
+step <- 120 #number of seconds per window
 
 #Number of minutes divided by window size
 n<- max(nihr$Beat$Time)/step
@@ -134,6 +147,11 @@ dfa_list <- rlist::list.append(dfa_list, dfa_est[1])
 
 summary_dfa <- dfa_list %>% unlist() %>% as_tibble_col() %>% cbind(summary_dfa,.)
 
-summary_dfa %>%
+lm_object <- summary_dfa %>%
   #filter(value < 0.75) %>%
-ggplot(data = ., aes(x=HR, y=value)) + geom_point()
+  lm(value ~ HR, data = .) 
+
+as.numeric(lm_object$coefficients[1])
+as.numeric(lm_object$coefficients[2])
+
+ggplot(data = ., aes(x=HR, y=value)) + geom_point() + geom_smooth(method = "lm")
