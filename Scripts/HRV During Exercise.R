@@ -71,8 +71,7 @@ for(j in 1:length(all_rr_data)){
 
 for(i in 1:length(all_rr_data)){plot(unlist(all_rr_data[[i]]), 
                                      main = all_rr_data[[i]][[1]])}
-?plot()
-unique(all_rr_data[[j+20]]$Source)
+
 
 #Adjust filter based on plot
  all_rr_data[[1]] %>% 
@@ -85,7 +84,8 @@ for(i in 1:length(all_rr_data)){
     as_tibble_col()
   }
 
-#writes to txt
+ #Will need to lapply this and likely for loop for HRV data & NIHR
+ #writes to txt
 write.table(filtered_rr_data, file = "./Text Files/01_09_2021_easy_long_run.txt", row.names = F, col.names = F) 
 
 hrv.data <- CreateHRVData() #create structure to store HRV data
