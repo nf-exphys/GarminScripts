@@ -1,12 +1,10 @@
 library(tidyverse, warn.conflicts = F); library(RHRV)
 library(fitFileR)
+
 #Assorted activities from late December & early January 2021
 easy_run <- fitFileR::readFitFile(fileName = "E:\\GARMIN\\ACTIVITY\\ACS81007.FIT") #easy run with Coach K
 prog_bike <- readFitFile(fileName = "E:\\GARMIN\\ACTIVITY\\B12H3747.FIT") #progression bike ride
 long_run <- readFitFile(fileName = "E:\\GARMIN\\ACTIVITY\\B1285039.FIT") #115 min long run w/~10 min progression
-
-#Compare number of HR beats to number of RR intervals
-length(prog_bike$record$heart_rate); length(prog_bike$hrv$time)
 
 hrv <- prog_bike$hrv$time #set the hrv data as its own object for more succinct code
 hrv <- long_run$hrv$time
@@ -22,67 +20,70 @@ hrv_files <- list.files(path = "./Data/ExportedRunData/Cleaned_CSVs/",
 
 read_csv_filename <- function(filename){
   ret <- read_csv(filename)
+  filename <- str_remove(string = filename, pattern = "./Data/ExportedRunData/Cleaned_CSVs/")
+  filename <- str_remove(string = filename, pattern = " hrvdata.csv")
   ret$Source <- filename #EDIT
   ret
 }
 
 hrv_list <- lapply(hrv_files, read_csv_filename)
 
+library(doParallel)
+n <- detectCores()
+registerDoParallel(n-3)
 
-rr_data <- matrix(ncol=1)
-#Pulls together RR intervals where RR is less than 1 (which it should be for this ride based on collab notebook)
-for (i in 1:length(hrv)){
-  if("list" %in% class(hrv)){
-    if (i==1){
-      rr_data <- tibble(hrv=as.numeric(unlist(hrv[i]))) %>%
-        pivot_longer(cols = hrv, names_to = NULL, values_to = "rr") %>%
-        mutate(rr = case_when(rr < 1 ~ rr)) #drops values greater than 1
-      } else{
-      rr_data <- tibble(hrv=as.numeric(unlist(hrv[i]))) %>%
-        pivot_longer(cols = hrv, names_to = NULL, values_to = "rr") %>%
-        mutate(rr = case_when(rr < 1 ~ rr)) %>% #drops values greater than 1
-        bind_rows(rr_data,.) %>%
-        filter(is.na(rr) == F) %>%
-        select(rr)
-    }
-  } else {
-    stop("HRV data isn't a list. This for loop isn't needed")
-  }
-  
+all_rr_data <- list()
+
+all_rr_data <- foreach(i=1:length(hrv_list), .packages = "tidyverse") %dopar% {
+  all_rr_data[[i]] <- hrv_list[[i]] %>% rename(rr = hrv) %>%
+    mutate(rr = case_when(rr < 1 ~ rr)) %>%
+    drop_na()
 }
-
-rr_data <- hrv %>% 
-  rename(rr = hrv) %>%
-  mutate(rr = case_when(rr < 60 ~ rr)) %>%
-  drop_na()
-
-#Plot of RR intervals over time
-ggplot(data = rr_data, aes(y=rr, x=row_number(rr))) + geom_point()
 
 #Now need to do artifact correction
 artifact_correction_threshold <- 0.05
-i=2
-filtered_rr_data <- list()
+#filtered_rr_data <- tibble()
 
-for (i in 2:nrow(rr_data)){ #start at 2 because of i-1
+#Something isn't right with Source, need to figure that out
+for(j in 1:length(all_rr_data)){
   
-  low_bound <- rr_data$rr[i-1]*(1-artifact_correction_threshold)
-  high_bound <- rr_data$rr[i-1]*(1+artifact_correction_threshold)
+  current_rr <- all_rr_data[[j]]
   
-  if ((low_bound < rr_data$rr[i]) & (rr_data$rr[i] < high_bound)){
+  filtered_rr_data <- foreach(i=2:nrow(current_rr), .packages = "tidyverse") %dopar% { #start at 2 because of i-1
     
-    filtered_rr_data <- rlist::list.append(filtered_rr_data, rr_data$rr[i])
+    #Set high and low bounds
+    low_bound <- current_rr$rr[i-1]*(1-artifact_correction_threshold)
+    high_bound <- current_rr$rr[i-1]*(1+artifact_correction_threshold)
     
+    if ((low_bound < current_rr$rr[i]) & (current_rr$rr[i] < high_bound)){
+      
+      #filtered_rr_data <- rlist::list.append(filtered_rr_data, current_rr$rr[i])
+      filtered_rr_data <- filtered_rr_data %>% 
+        bind_rows(.,current_rr[i,])
+        
+      
+    } 
   }
+  
+  all_rr_data[[j]] <- filtered_rr_data
+  
 }
 
-length(filtered_rr_data)
-plot(unlist(filtered_rr_data))
+for(i in 1:length(all_rr_data)){plot(unlist(all_rr_data[[i]]), 
+                                     main = all_rr_data[[i]][[1]])}
+?plot()
+unique(all_rr_data[[j+20]]$Source)
 
 #Adjust filter based on plot
-filtered_rr_data <- filtered_rr_data %>% 
-  unlist %>% as_tibble_col() %>%
-  filter(value < 0.7) 
+ all_rr_data[[1]] %>% 
+   unlist %>% as_tibble_col() %>%
+   filter(value < 0.8) 
+
+for(i in 1:length(all_rr_data)){
+  all_rr_data[[i]] <- all_rr_data[[i]] %>%
+    unlist() %>%
+    as_tibble_col()
+  }
 
 #writes to txt
 write.table(filtered_rr_data, file = "./Text Files/01_09_2021_easy_long_run.txt", row.names = F, col.names = F) 
@@ -123,13 +124,13 @@ nihr$Beat$split <- cut_interval(1:nrow(nihr$Beat), floor(n), boundary = 0)
 split_data <- nihr$Beat %>%
   group_by(split) %>%
   group_split(.keep = T)
-View(split_data)
+#View(split_data)
 
 #Find HR for each split
 summary_dfa <- nihr$Beat %>%
   group_by(split) %>%
   summarise(HR = mean(niHR))
-View(summary_dfa)
+#View(summary_dfa)
 
 dfa_list <- list()
 i=1
@@ -138,7 +139,7 @@ for (i in 1:length(split_data)){
 
 dfa_analysis <- nonlinearTseries::dfa(time.series = split_data[[i]]$RR, npoints = 30, window.size.range = c(4,300))
 
-regression_range <- c(4,40) #based on Kubios
+regression_range <- c(4,30) #based on Kubios
 
 dfa_est <- estimate(dfa_analysis, do.plot=T, regression.range = regression_range)
 dfa_est[1]
@@ -154,4 +155,38 @@ lm_object <- summary_dfa %>%
 as.numeric(lm_object$coefficients[1])
 as.numeric(lm_object$coefficients[2])
 
+summary_dfa %>%
+  #filter(value < 0.75) %>%
 ggplot(data = ., aes(x=HR, y=value)) + geom_point() + geom_smooth(method = "lm")
+
+
+# #Pulls together RR intervals from single file if in list
+# rr_data <- matrix(ncol=1)
+# for (i in 1:length(hrv)){
+#   if("list" %in% class(hrv)){
+#     if (i==1){
+#       rr_data <- tibble(hrv=as.numeric(unlist(hrv[i]))) %>%
+#         pivot_longer(cols = hrv, names_to = NULL, values_to = "rr") %>%
+#         mutate(rr = case_when(rr < 60 ~ rr)) #drops 'NA' values
+#       } else{
+#       rr_data <- tibble(hrv=as.numeric(unlist(hrv[i]))) %>%
+#         pivot_longer(cols = hrv, names_to = NULL, values_to = "rr") %>%
+#         mutate(rr = case_when(rr < 60 ~ rr)) %>% #drops 'NA' values
+#         bind_rows(rr_data,.) %>%
+#         filter(is.na(rr) == F) %>%
+#         select(rr)
+#     }
+#   } else {
+#     stop("HRV data isn't a list. This for loop isn't needed")
+#   }
+#   
+# }
+# 
+# #Filters RR intervals from single file if in tibble already
+# rr_data <- hrv %>% 
+#   rename(rr = hrv) %>%
+#   mutate(rr = case_when(rr < 60 ~ rr)) %>%
+#   drop_na()
+# 
+# #Plot of RR intervals over time
+# ggplot(data = rr_data, aes(y=rr, x=row_number(rr))) + geom_point()
