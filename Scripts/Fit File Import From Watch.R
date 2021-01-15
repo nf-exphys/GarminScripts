@@ -56,6 +56,10 @@ new_files <- list.files(path = watch_path, full.names=F, pattern = "*.fit", igno
 files_to_read <- setdiff(new_files, previous_files) 
 files_to_read <- paste0(watch_path, files_to_read)
 
+if(length(files_to_read) == 0){
+  stop("No new files to import. Stopping.")
+}
+
 #Sets n as the number of files to be read
 n <- length(files_to_read)
 
