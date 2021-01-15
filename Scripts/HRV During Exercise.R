@@ -1,23 +1,59 @@
 library(tidyverse, warn.conflicts = F); library(RHRV)
 library(fitFileR)
 
-library(doParallel)
-n <- detectCores()
-registerDoParallel(n-4)
+#Figure out which CSVs to read in 
+hrv_file_path <- "./Data/ExportedRunData/Cleaned_CSVs/"
 
-#Read in CSVs with HRV data
 hrv_files <- list.files(path = "./Data/ExportedRunData/Cleaned_CSVs/", 
-                        pattern="* hrvdata.csv", full.names = T)
+                        pattern="* hrvdata.csv", full.names = F)
 
-clean_filename <- function(filename){
-  filename <- str_remove(string = filename, pattern = "./Data/ExportedRunData/Cleaned_CSVs/")
-  filename <- str_remove(string = filename, pattern = " hrvdata.csv")
-  filename
-  }
+previous_dfa <- list.files(path = "./Data/DFA/", pattern = "*.csv")
 
+clean_file_for_comp <- function(x){ #x is either hrv_files or previous_dfa
+  x <- str_remove_all(x, pattern = "[:alpha:]|\\.")
+  x <- str_split(x, pattern = " ", n=3)
+  x <- unlist(x)[1:2]
+  x <- paste(x[1], x[2], sep = " ")
+  x
+}
+
+hrv_files <- lapply(hrv_files, clean_file_for_comp)
+previous_dfa <- lapply(previous_dfa, clean_file_for_comp)
+
+#List of files in hrv_files not in previous dfa
+hrv_to_read <- setdiff(hrv_files, previous_dfa)
+
+#Read in previous DFA exclusions & format
+exclude_dfa <- read.table("./Data/DFA/DFA_exclusions.txt", fill = T)
+
+exclude_dfa <- exclude_dfa %>% 
+  mutate(date = as.POSIXct(x, format = '%Y-%m-%d %H:%M:%S', tz = "")) %>%
+  pull(date)
+
+exclude_dfa <- as.list(format(exclude_dfa, "%Y_%m_%d %H_%M_%S"))
+
+#Compare hrv_to_read with DFA exclusions
+hrv_files <- setdiff(hrv_to_read, exclude_dfa)
+
+#Setup hrv_file storage
 hrv_list <- list()
-hrv_list[["rr_int"]] <- lapply(hrv_files, read_csv) #read in HRV
-hrv_list[["source"]] <- lapply(hrv_files, clean_filename) #read in date/time
+
+#Adds dates
+hrv_list[["source"]] <- hrv_files
+
+#Add file path back & import CSVs with RR intervals
+hrv_files <- paste0(hrv_file_path, hrv_files, " hrvdata.csv")
+hrv_list[["rr_int"]] <- lapply(hrv_files, read_csv)
+
+# clean_filename <- function(filename){
+#   filename <- str_remove(string = filename, pattern = "./Data/ExportedRunData/Cleaned_CSVs/")
+#   filename <- str_remove(string = filename, pattern = " hrvdata.csv")
+#   filename
+#   }
+# 
+# 
+# hrv_list[["rr_int"]] <- lapply(hrv_files, read_csv) #read in HRV
+# hrv_list[["source"]] <- lapply(hrv_files, clean_filename) #read in date/time
 
 first_correction <- 0.025 #trial-and-error
 second_correction <- 0.025 #now catch ones way outside
@@ -190,11 +226,15 @@ all_dfa_values <- lapply(hrv_list$source, rolling_dfa)
 
 no_dfa <- which(lapply(all_dfa_values, length) < 4)
 
-exclude_dfa <- list()
+#Adds files that didn't work for DFA and adds them to existing list
+#exclude_dfa <- list()
 for(i in 1:length(no_dfa)){
+  #might have to fix formatting here?
   exclude_dfa <- rlist::list.append(exclude_dfa, as.character(all_dfa_values[no_dfa][[i]]$date))
- }
-write.table(exclude_dfa, file = "DFA_exclusions.txt")
+}
+
+exclude_dfa <- unlist(exclude_dfa)
+write.table(exclude_dfa, file = "./Data/DFA/DFA_exclusions.txt")
 
 filtered_dfa_values <- list()
 filtered_dfa_values <- all_dfa_values[-no_dfa]
@@ -204,13 +244,13 @@ for(i in 1:length(filtered_dfa_values)){
   my_date <- format(my_date, '%Y_%m_%d %H_%M_%S')
   
   filtered_dfa_values[[i]]$dfa_data %>%
-    write_csv(., file = paste0("./Data/DFA/rolling_dfa_", my_date, ".csv"))
+    write_csv(., file = paste0("./Data/DFA/", my_date, " rolling_dfa.csv"))
   
 }
 
 
 
-
+#Extras
 for(i in 1:length(filtered_dfa_values)){
 p1 <- ggplot() + 
   geom_point(data = filtered_dfa_values[[i]]$dfa_data, aes(x=n, y=a1), color = "blue") + 
