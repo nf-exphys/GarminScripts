@@ -1,5 +1,5 @@
 library(tidyverse, warn.conflicts = F); library(RHRV)
-library(fitFileR)
+library(fitFileR); library(nonlinearTseries)
 
 #Figure out which CSVs to read in 
 hrv_file_path <- "./Data/ExportedRunData/Cleaned_CSVs/"
@@ -44,16 +44,6 @@ hrv_list[["source"]] <- hrv_files
 #Add file path back & import CSVs with RR intervals
 hrv_files <- paste0(hrv_file_path, hrv_files, " hrvdata.csv")
 hrv_list[["rr_int"]] <- lapply(hrv_files, read_csv)
-
-# clean_filename <- function(filename){
-#   filename <- str_remove(string = filename, pattern = "./Data/ExportedRunData/Cleaned_CSVs/")
-#   filename <- str_remove(string = filename, pattern = " hrvdata.csv")
-#   filename
-#   }
-# 
-# 
-# hrv_list[["rr_int"]] <- lapply(hrv_files, read_csv) #read in HRV
-# hrv_list[["source"]] <- lapply(hrv_files, clean_filename) #read in date/time
 
 first_correction <- 0.025 #trial-and-error
 second_correction <- 0.025 #now catch ones way outside
@@ -102,21 +92,21 @@ for(i in 1:length(hrv_list$rr_int)){
 
 hrv_txt_files <- list.files(path = "./Text Files/", pattern = "cleaned_hrv*", full.names = T)
 
+#ADD something here to prune down hrv_txt_files to just the files in hrv_list$source
+hrv_txt_files <- unique(grep(paste(hrv_list$source, collapse = "|"), hrv_txt_files, value = T))
+
 #Change to POSIXct and rearrange to RHRV format
 for(i in 1:length(hrv_list$source)){
   hrv_list$source[[i]] <- as.POSIXct(hrv_list$source[[i]], format = "%Y_%m_%d %H_%M_%S")
   hrv_list$source[[i]] <- format(hrv_list$source[[i]], '%d/%m/%Y %H:%M:%S')
 } 
 
-#date_source is the hrv_list$source
-library(nonlinearTseries)
-
-#goal is to combine source data (hrv_list$source) with RR data (hrv_txt_files)
-date_and_txt <- bind_cols(as_tibble_col(unlist(hrv_list$source)), as_tibble_col(unlist(hrv_txt_files)))
+#Creates tibble with date/time in RHRV format and file path for cleaned HRV data 
+date_and_txt <- bind_cols(as_tibble_col(unlist(hrv_list$source)), 
+                          as_tibble_col(unlist(hrv_txt_files)))
 names(date_and_txt) <- c("date", "txt")  
 
-#date_source is hrv_list$source[[#]]
-
+#Setup function to find rolling DFA
 rolling_dfa <- function(date_source){
   
   #take the date and find the associated text file
@@ -219,17 +209,17 @@ rolling_dfa <- function(date_source){
   
 }
 
-#notable_dfa_values <- rolling_dfa(hrv_list$source[[25]])
-
 all_dfa_values <- list()
 all_dfa_values <- lapply(hrv_list$source, rolling_dfa)
 
 no_dfa <- which(lapply(all_dfa_values, length) < 4)
 
-#Adds files that didn't work for DFA and adds them to existing list
-#exclude_dfa <- list()
+#Takes files that didn't work for DFA and adds them to existing list
+
 for(i in 1:length(no_dfa)){
-  #might have to fix formatting here?
+  #fix formating
+  all_dfa_values[no_dfa][[i]]$date <- format(all_dfa_values[no_dfa][[i]]$date, "%Y_%m_%d %H_%M_%S")
+  #add to exclude_dfa
   exclude_dfa <- rlist::list.append(exclude_dfa, as.character(all_dfa_values[no_dfa][[i]]$date))
 }
 
@@ -248,29 +238,44 @@ for(i in 1:length(filtered_dfa_values)){
   
 }
 
-
-
-#Extras
-for(i in 1:length(filtered_dfa_values)){
-p1 <- ggplot() + 
-  geom_point(data = filtered_dfa_values[[i]]$dfa_data, aes(x=n, y=a1), color = "blue") + 
-  ggtitle(filtered_dfa_values[[i]]$date)
-p2 <- ggplot() + 
-  geom_point(data = filtered_dfa_values[[i]]$dfa_data, aes(x=n, y=HR), color = "red") + 
-  ggtitle(round(filtered_dfa_values[[i]]$HR), 0)
-gridExtra::grid.arrange(p1, p2, nrow=2)
-}
-
-
-dfa_hr_date <- data.frame(hr=numeric(), date = numeric())
-for(i in 1:length(filtered_dfa_values)){
-  temp_df <- data.frame(hr = filtered_dfa_values[[i]]$HR, date = filtered_dfa_values[[i]]$date)
-  dfa_hr_date <- rbind(dfa_hr_date, temp_df)
-}
-dfa_hr_date %>%
-  filter(hr < 200 & hr > 100) %>%
-  summarise(HR = mean(hr))
-ggplot(data = ., aes(x=date, y=hr)) + geom_line()
+#### Extra code for graphing ####
+# filtered_dfa_values[[i]]$dfa_data %>%
+#   filter(a1 < 1.0) %>%
+#   ggplot(data = ., aes(x=HR, y=a1)) + geom_point()
+# 
+# #Plotting HR and DFA
+# for(i in 1:length(filtered_dfa_values)){
+# 
+# #Add column with n  
+# filtered_dfa_values[[i]]$dfa_data <- filtered_dfa_values[[i]]$dfa_data %>%
+#   as_tibble() %>%
+#   mutate(n = row_number())
+# 
+# #DFA data
+# 
+# p1 <- ggplot() + 
+#   geom_point(data = filtered_dfa_values[[i]]$dfa_data, aes(x=n, y=a1), color = "blue") + 
+#   ggtitle(filtered_dfa_values[[i]]$date)
+# 
+# #HR data
+# p2 <- ggplot() + 
+#   geom_point(data = filtered_dfa_values[[i]]$dfa_data, aes(x=n, y=HR), color = "red") + 
+#   ggtitle(round(filtered_dfa_values[[i]]$HR), 0)
+# 
+# #Setup plot layout
+# gridExtra::grid.arrange(p1, p2, nrow=2)
+# }
+# 
+# 
+# dfa_hr_date <- data.frame(hr=numeric(), date = numeric())
+# for(i in 1:length(filtered_dfa_values)){
+#   temp_df <- data.frame(hr = filtered_dfa_values[[i]]$HR, date = filtered_dfa_values[[i]]$date)
+#   dfa_hr_date <- rbind(dfa_hr_date, temp_df)
+# }
+# dfa_hr_date %>%
+#   filter(hr < 200 & hr > 100) %>%
+#   summarise(HR = mean(hr))
+# ggplot(data = ., aes(x=date, y=hr)) + geom_line()
 
 
 
@@ -281,47 +286,3 @@ ggplot(data = ., aes(x=date, y=hr)) + geom_line()
 # p2 <- ggplot() + 
 #   geom_point(data = notable_dfa_values$dfa_data, aes(x=n, y=HR), color = "red")
 # gridExtra::grid.arrange(p1, p2, nrow=2)
-
-# #Assorted activities from late December & early January 2021
-# easy_run <- fitFileR::readFitFile(fileName = "E:\\GARMIN\\ACTIVITY\\ACS81007.FIT") #easy run with Coach K
-# prog_bike <- readFitFile(fileName = "E:\\GARMIN\\ACTIVITY\\B12H3747.FIT") #progression bike ride
-# long_run <- readFitFile(fileName = "E:\\GARMIN\\ACTIVITY\\B1285039.FIT") #115 min long run w/~10 min progression
-# 
-# hrv <- prog_bike$hrv$time #set the hrv data as its own object for more succinct code
-# hrv <- long_run$hrv$time
-# hrv <- easy_run$hrv$time
-# 
-# #Alternatively, can read in Exercise HRV data from CSV
-#   #Example: CSV from 01/09/2021 easy long run with Dylan
-# hrv <- read_csv(file = "./Data/ExportedRunData/Cleaned_CSVs/2021_01_09 10_37_24 hrvdata.csv")
-
-# #Pulls together RR intervals from single file if in list
-# rr_data <- matrix(ncol=1)
-# for (i in 1:length(hrv)){
-#   if("list" %in% class(hrv)){
-#     if (i==1){
-#       rr_data <- tibble(hrv=as.numeric(unlist(hrv[i]))) %>%
-#         pivot_longer(cols = hrv, names_to = NULL, values_to = "rr") %>%
-#         mutate(rr = case_when(rr < 60 ~ rr)) #drops 'NA' values
-#       } else{
-#       rr_data <- tibble(hrv=as.numeric(unlist(hrv[i]))) %>%
-#         pivot_longer(cols = hrv, names_to = NULL, values_to = "rr") %>%
-#         mutate(rr = case_when(rr < 60 ~ rr)) %>% #drops 'NA' values
-#         bind_rows(rr_data,.) %>%
-#         filter(is.na(rr) == F) %>%
-#         select(rr)
-#     }
-#   } else {
-#     stop("HRV data isn't a list. This for loop isn't needed")
-#   }
-#   
-# }
-# 
-# #Filters RR intervals from single file if in tibble already
-# rr_data <- hrv %>% 
-#   rename(rr = hrv) %>%
-#   mutate(rr = case_when(rr < 60 ~ rr)) %>%
-#   drop_na()
-# 
-# #Plot of RR intervals over time
-# ggplot(data = rr_data, aes(y=rr, x=row_number(rr))) + geom_point()
