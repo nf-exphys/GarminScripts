@@ -2,21 +2,41 @@ library(tidyverse, warn.conflicts = F)
 ##### Load 2020 Data #####
   #Long term, I think calling this data from SQL is probably the way to go
   #So much of what I'm doing is dependent on relational data
-load(file = "./Objects/FitDFCleanSort2020-10-12.Rdata") #loads data
-Fit.DF2 <- Fit.DF #renames to avoid being overwritten
+# load(file = "./Objects/FitDFCleanSort2020-10-12.Rdata") #loads data
+# Fit.DF2 <- Fit.DF #renames to avoid being overwritten
+# 
+# load(file = "./Objects/FitDFCleanSort2020-08-24.Rdata") #loads data
+# data <- c(Fit.DF, Fit.DF2) #combines first two data loads
+# remove(Fit.DF, Fit.DF2) #to avoid confusion
+# 
+# load(file = "./Objects/FitDFCleanSort2020-12-18_Oct11_Oct31.Rdata") #loads data
+# Fit.DF3 <- Fit.DF #renames to avoid being overwritten
+# 
+# load(file = "./Objects/FitDFCleanSort2020-12-18_Oct31_Dec17.Rdata") #loads data
+# Fit.DF4 <- Fit.DF #renames for clarity
+# 
+# data <- c(data, Fit.DF3, Fit.DF4)
+# remove(Fit.DF, Fit.DF3, Fit.DF4)
 
-load(file = "./Objects/FitDFCleanSort2020-08-24.Rdata") #loads data
-data <- c(Fit.DF, Fit.DF2) #combines first two data loads
-remove(Fit.DF, Fit.DF2) #to avoid confusion
+#Read in any new files, save as CSV
+source("./Scripts/Fit File Import From Watch.R"); remove(list = ls())
+source("./Scripts/HRV During Exercise.R"); remove(list = ls())
 
-load(file = "./Objects/FitDFCleanSort2020-12-18_Oct11_Oct31.Rdata") #loads data
-Fit.DF3 <- Fit.DF #renames to avoid being overwritten
+#SQL integration is finicky, reading in CSVs for now
+csv_file_path <- "./Data/ExportedRunData/Cleaned_CSVs/"
 
-load(file = "./Objects/FitDFCleanSort2020-12-18_Oct31_Dec17.Rdata") #loads data
-Fit.DF4 <- Fit.DF #renames for clarity
+all_record_files <- list.files(path = csv_file_path, pattern = "* record.csv")
+all_lap_files <- list.files(path = csv_file_path, pattern = "* lap.csv")
+all_sum_files <- list.files(path = csv_file_path, pattern = "* sumdata.csv")
 
-data <- c(data, Fit.DF3, Fit.DF4)
-remove(Fit.DF, Fit.DF3, Fit.DF4)
+recent_record_files <- grep("2020|2021", all_record_files, value = T)
+recent_lap_files <- grep("2020|2021", all_lap_files, value = T)
+recent_sum_files <- grep("2020|2021", all_sum_files, value = T)
+
+remove(all_record_files, all_lap_files, all_sum_files)
+
+recent_record_files_path <- paste0(csv_file_path, recent_record_files)
+recent_records <- map_dfr(recent_record_files_path, read_csv)
 
 ##### Checking for Duplicates & Sequential Ordering #####
 n <- length(data)

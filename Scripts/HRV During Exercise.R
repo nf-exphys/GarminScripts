@@ -24,16 +24,17 @@ previous_dfa <- lapply(previous_dfa, clean_file_for_comp)
 hrv_to_read <- setdiff(hrv_files, previous_dfa)
 
 #Read in previous DFA exclusions & format
-exclude_dfa <- read.table("./Data/DFA/DFA_exclusions.txt", fill = T)
-
-exclude_dfa <- exclude_dfa %>% 
-  mutate(date = as.POSIXct(x, format = '%Y-%m-%d %H:%M:%S', tz = "")) %>%
-  pull(date)
-
-exclude_dfa <- as.list(format(exclude_dfa, "%Y_%m_%d %H_%M_%S"))
+exclude_dfa <- read.table("./Data/DFA/DFA_exclusions.txt", 
+                          fill = T, col.names = c("date")) %>%
+                        pull(date)
 
 #Compare hrv_to_read with DFA exclusions
 hrv_files <- setdiff(hrv_to_read, exclude_dfa)
+
+#Stops code if there aren't new files to read
+if (length(hrv_files) < 1){
+  stop("There are no new HRV files to be read. Stopping.")
+}
 
 #Setup hrv_file storage
 hrv_list <- list()
@@ -215,19 +216,30 @@ all_dfa_values <- lapply(hrv_list$source, rolling_dfa)
 no_dfa <- which(lapply(all_dfa_values, length) < 4)
 
 #Takes files that didn't work for DFA and adds them to existing list
-
-for(i in 1:length(no_dfa)){
+if(length(no_dfa) > 0){
+  for(i in 1:length(no_dfa)){
   #fix formating
   all_dfa_values[no_dfa][[i]]$date <- format(all_dfa_values[no_dfa][[i]]$date, "%Y_%m_%d %H_%M_%S")
   #add to exclude_dfa
   exclude_dfa <- rlist::list.append(exclude_dfa, as.character(all_dfa_values[no_dfa][[i]]$date))
-}
+  }
+ }
 
 exclude_dfa <- unlist(exclude_dfa)
 write.table(exclude_dfa, file = "./Data/DFA/DFA_exclusions.txt")
 
 filtered_dfa_values <- list()
-filtered_dfa_values <- all_dfa_values[-no_dfa]
+
+if(length(no_dfa) == 0){
+  filtered_dfa_values <- all_dfa_values
+} else{
+  filtered_dfa_values <- all_dfa_values[-no_dfa]  
+}
+
+if(length(filtered_dfa_values) == 0){
+  stop("No new rolling DFA data to write. Stopping")
+}
+
 for(i in 1:length(filtered_dfa_values)){
   
   my_date <- filtered_dfa_values[[i]]$date
