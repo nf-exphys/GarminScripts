@@ -41,11 +41,15 @@ TRIMP.func <- function(data, i) {
 
 # Import Data ---------------------------------------------------
 watch_path <- "E:\\GARMIN\\ACTIVITY\\"
+alt_watch_path <- "L:\\GARMIN\\ACTIVITY\\"
 
 #Check if the watch is plugged in
 if(file.access(names = watch_path, mode=4) == 0){
-  print("Watch detected. Continuing")
-} else{stop("GPS Watch Not Detected. Stopping.")}
+  print("Watch detected at Drive E. Continuing")
+} else if(file.access(names = alt_watch_path, mode=4) == 0){
+  print("Watch detected at Drive L. Continuing")
+  watch_path <- alt_watch_path
+} else{stop("GPS Watch Not Detected at Drive E or Drive L. Stopping.")}
 
 #Compare files already read in to new files
 previous_files <- list.files(path = "./Data/ExportedRunData/Old_Fit_Files/", full.names=F, pattern = "*.fit", ignore.case=T)
@@ -54,11 +58,12 @@ new_files <- list.files(path = watch_path, full.names=F, pattern = "*.fit", igno
 #List of files to be read in, adds file path
   #Compares old files (already read in) to new files (currently on GPS watch)
 files_to_read <- setdiff(new_files, previous_files) 
-files_to_read <- paste0(watch_path, files_to_read)
 
 if(length(files_to_read) == 0){
   stop("No new files to import. Stopping.")
 }
+
+files_to_read <- paste0(watch_path, files_to_read)
 
 #Sets n as the number of files to be read
 n <- length(files_to_read)
@@ -67,7 +72,7 @@ n <- length(files_to_read)
 library(doParallel); c <- detectCores()
 c <- round((c/3),0)
 c <- c+4
-registerDoParallel(c)
+c1 <- makeCluster(c)
 
 #Creates an empty list to be filled with data frames
 Fit.DF <- vector('list', n)
@@ -76,8 +81,20 @@ Fit.DF <- vector('list', n)
 #start <- proc.time()
 
 Fit.DF <- foreach(i=1:n) %dopar% {
-  IndivFitFile <- fitFileR::readFitFile(files_to_read[i]) #Reads in each fit file and gives it the name IndivFitFile
-  Fit.DF[[i]] <- lapply(IndivFitFile, data.frame, stringsAsFactors = FALSE) #Puts fit files into a list as data frames
+  #Reads in each fit file then puts fit files into a list as data frames
+  IndivFitFile <- fitFileR::readFitFile(files_to_read[i])
+  Fit.DF[[i]] <- lapply(IndivFitFile, data.frame, stringsAsFactors = FALSE)
+
+}
+
+#Sometimes parallel processing doesn't work. If so, just run a normal for loop
+if(is.null(Fit.DF[[1]]) == T){
+  print("Parallel processing didn't work. Running normal for loop instead")
+  Fit.DF <- for(i in 1:n){
+    IndivFitFile <- fitFileR::readFitFile(files_to_read[i]) 
+    Fit.DF[[i]] <- lapply(IndivFitFile, data.frame, stringsAsFactors = FALSE) 
+  }
+  
 }
 
 #do_par_loop <- proc.time()-start
