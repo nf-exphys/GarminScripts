@@ -19,136 +19,122 @@ library(tidyverse, warn.conflicts = F)
 # remove(Fit.DF, Fit.DF3, Fit.DF4)
 
 #Read in any new files, save as CSV
-source("./Scripts/Fit File Import From Watch.R"); remove(list = ls())
-source("./Scripts/HRV During Exercise.R"); remove(list = ls())
+source("./Scripts/Fit File Import From Watch.R")
+remove(list = ls())
+
+source("./Scripts/HRV During Exercise.R")
+remove(list = ls())
 
 #SQL integration is finicky, reading in CSVs for now
 csv_file_path <- "./Data/ExportedRunData/Cleaned_CSVs/"
 
+#list all record, lap, and summary files
 all_record_files <- list.files(path = csv_file_path, pattern = "* record.csv")
 all_lap_files <- list.files(path = csv_file_path, pattern = "* lap.csv")
 all_sum_files <- list.files(path = csv_file_path, pattern = "* sumdata.csv")
 
+#finds files from 2020 OR 2021
 recent_record_files <- grep("2020|2021", all_record_files, value = T)
 recent_lap_files <- grep("2020|2021", all_lap_files, value = T)
 recent_sum_files <- grep("2020|2021", all_sum_files, value = T)
 
+#Removes unneeded files
 remove(all_record_files, all_lap_files, all_sum_files)
 
+#read in record data
 recent_record_files_path <- paste0(csv_file_path, recent_record_files)
-recent_records <- map_dfr(recent_record_files_path, read_csv)
+recent_records <- map_dfr(recent_record_files_path, read_csv) %>%
+  select(-fractional_cadence)
 
-##### Checking for Duplicates & Sequential Ordering #####
-n <- length(data)
-repeat_check <- tibble()
-for (i in 1:n){
-  repeat_check[i,1] <- as.POSIXct(data[[i]]$sum_data$start_time, origin = "1970-01-01")
-  repeat_check[i,2] <- as.numeric(i)
+#read in lap data
+recent_lap_files_path <- paste0(csv_file_path, recent_lap_files)
+recent_laps <- map_dfr(recent_lap_files_path, read_csv, col_types= cols(
+  .default = col_double(), ID = col_datetime(format = ""),
+    event = "c", event_type = "c", lap_trigger = "c",
+    sport = "c", start_time = col_datetime(format = ""),
+    sub_sport = "c", timestamp = col_datetime(format = "")
+    ))
+
+#read in summary data
+recent_sum_files_path <- paste0(csv_file_path, recent_sum_files)
+recent_sum <- map_dfr(recent_sum_files_path, read_csv, col_types = cols_only(
+  ID = col_datetime(format = ""),
+  avg_heart_rate = "d", avg_speed = "d",
+  max_heart_rate = "d", max_speed = "d",
+  nec_lat = "d", nec_long = "d", num_laps = "d", sport = "c", sub_sport = "c",
+  start_position_lat = "d", start_position_long = "d",
+  start_time = col_datetime(format = ""),
+  swc_lat = "d", swc_long = "d",
+  TimeMinutes = "d", timestamp = col_datetime(format = ""),
+  total_descent = "d", total_distance = "d",
+  total_elapsed_time = "d", total_timer_time = "d"))
+
+rm(list = ls.str(mode = 'character')) #clears out lots of the non-DF objects
+
+#Get rid of useless lap columns by searching for near zero variance
+nzv_in_lap <- caret::nearZeroVar(recent_laps)
+recent_laps <- recent_laps[-nzv_in_lap] %>%
+  select(-total_moving_time) #only had 4 values total
+
+#Fix lat & long
+recent_laps <- recent_laps %>% mutate(
+  start_position_lat = start_position_lat/(2^32 / 360),
+  end_position_lat = end_position_lat/(2^32 / 360),
+  start_position_long = start_position_long/(2^32 / 360),
+  end_position_long = end_position_long/(2^32 / 360)
+  )
+
+recent_records <- recent_records %>% mutate(
+  position_lat = position_lat/(2^32 / 360),
+  position_long = position_long/(2^32 / 360)
+)
+
+#summary data
+lat_cols <- grep(colnames(recent_sum), pattern = "lat")
+long_cols <- grep(colnames(recent_sum), pattern = "long")
+
+position_cols <- c(lat_cols, long_cols)
+recent_sum[,position_cols] <- recent_sum[,position_cols]/(2^32 / 360)
+
+#clears out lots of the non-DF objects
+rm(list = ls.str(mode = 'character')) 
+rm(list = ls.str(mode = 'integer')) 
+
+#split timestamp into date and time
+split_date_time <- function(x){
+  x %>%  mutate(
+    date = as.Date(timestamp, tz="America/Chicago"),
+    time = format(timestamp, "%H:%M:%S"),
+    .keep = "unused"
+  )
+  
 }
-colnames(repeat_check) <- c("start", "num")
 
-setdiff(which(duplicated(repeat_check$start) == T), which(repeat_check$start=="1969-12-31 17:59:59"))
-  #Compares duplicates in repeat_check to lines in repeat_check from manually created activities, which have date of 1969
-  #If setdiff returns nothing, we know all of the repeats are due to manually created activities
-  #If setdiff returns something, such as 1351, run this to remove it: 
-data[1351] <- NULL
-
-#Checking to make sure every item is uploaded in sequential order
-repeat_check$progress <- as.logical(factor(ifelse(repeat_check$start > lag(repeat_check$start),'T','F')))
-repeat_check %>% #outputs any files out of order
-  filter(progress == F & start > "2020-07-01") #Checked and 1407 is an indoor ride, don't care *shrug*
+recent_laps <- split_date_time(recent_laps)
+recent_records <- split_date_time(recent_records)
+recent_sum <- split_date_time(recent_sum)
 
 #Discard data from before July 2020 due to high frequency of indoor running, possibly inaccurate HR data, etc. 
   #Other data is still worth keeping, just not for modeling, at least not right now
   #Eventually, might be worth going back through a couple of seasons with some racing to strengthen modeling
-start_date <- repeat_check %>% filter(start > "2020-07-01") %>% head(1) %>% pull(num)
-data[1:(start_date-1)] <- NULL
-remove(repeat_check)
+  #It's also probably easier to work with a smaller dataset initially
+recent_sum <- recent_sum %>% filter(date > "2020-07-01")
+recent_records <- recent_records %>% filter(date > "2020-07-01")
+recent_laps <- recent_laps %>% filter(date> "2020-07-01")
 
 ##### Keeping Only Running Data #####
 
-#Initial screening
-  #Printing out data items that don't match or that have HRV data
-  #Ultimately removing names of data 
-for (i in 1:length(data)){
-  goal <- names(pluck(data, 1)) #standard for order of names
-  check <- names(pluck(data, i)) #check for each one
-  
-  if (("hrv" %in% check) == T){ #check for HRV data
-    print(paste0("hrv_", i))
-  } else {ifelse(all(diff(match(goal, check)) > 0)==F, print(i), next)} 
-  #if no HRV data, compare to goal and print i if it doesn't match
-}
-#HRV data in 218 to 245
-data[84:85] <- NULL #removed based on printed i above
-  #Seems like the problem is Connect-created files
+only_running_IDs <- recent_sum %>% 
+  filter(sport == "running") %>% #only running
+  filter(sub_sport == "generic") %>% #not going to train on treadmill data
+  pull(ID)
 
-#Use sum_data to identify events that aren't running
-#Somehow, the alphabetical sorting of names in sum_data didn't quite work for all of the data 
-for (i in 1:length(data)){
-  data[[i]]$sum_data <- data %>% 
-    pluck(.,i,"sum_data") %>% #selecting sum_data for each item in data
-    select(sort(names(.))) #sorting names alphabetically
-    #Then re-writes sum data
-}
+recent_sum <- subset(recent_sum, ID %in% only_running_IDs)
+recent_laps <- subset(recent_laps, ID %in% only_running_IDs)
+recent_records <- subset(recent_records, ID %in% only_running_IDs)
 
-sum_data <- data %>% #combine sum data into one big data frame
-  map(., "sum_data") %>%
-  bind_rows(.id = "data_index")
-
-useless_cols <- sum_data %>% 
-  lapply(., unique) %>% #finds number of unique values per column
-  lengths(., use.names = T) %>% #finds length of each item in the list
-  as.data.frame() %>% #converts to d.f.
-  rownames_to_column() %>% #adds row name(which is the previous column name)
-  rename(num_unique=".") %>% #fixes column name
-  filter(num_unique == 1) %>% pull(rowname) #outputs list of columns where # unique = 1
-
-sum_data <- sum_data %>% select(-c(useless_cols))
-
-unique(sum_data$name) #shows options for name
-
-not_running_in_data <- sum_data %>% #find events where the name isn't Run
-  filter(name != "Run") %>%
-  pull(data_index) %>%
-  as.numeric()
-
-length(data) #length before removing
-data[c(not_running_in_data)] <- NULL
-length(data) #length after removing
-
-#Creating data frames for each type of data, with data_index as the # of each from data
-  #If this is the way I'm going to go, it might be easier to just use all of the CSVs
-event <- data %>% map(.,"event") %>%
-  bind_rows(.id = "data_index")
-
-lap <- data %>% map(.,"lap") %>%
-  bind_rows(.id = "data_index")
-
-device_info <- data %>% 
-  map(.,"device_info") %>%
-  bind_rows(.id = "data_index")
-
-record <- data %>% map(.,"record") %>%
-  bind_rows(.id = "data_index")
-
-#Not ready for HRV data yet - need to figure out how to handle/process it first
 
 ##### Checking accuracy of HR data #####
- #split timestamp into date and time
-split_date_time <- function(x){
-  x %>%  mutate(
-    date = as.Date(timestamp, tz="America/Chicago"),
-    time = format(timestamp, "%H:%M:%S")
-  )
-  
-}
-#applies function to each data frame
-lap <- split_date_time(lap)
-event <- split_date_time(event)
-record <- split_date_time(record)
-sum_data <- split_date_time(sum_data)
-device_info <- split_date_time(device_info)
 
 #Next step is going to have to be to make a function to give me a Garmin Connect Like output
   #Input date - might need to merge same date first or create warning if multiple activities on same date
@@ -159,22 +145,30 @@ library(gridExtra); library(svDialogs)
 #Could be good to add background shading to plot to show HR zones 
   #https://stackoverflow.com/questions/61161960/how-do-i-add-shaded-backgrounds-to-ggplot
 
-#adds accuracy and impute columns, fills with NAs
-sum_data <- sum_data %>% add_column(hr_all_acc=NA, hr_impute=NA)
+
+#Take old summary data stored in different format and add it to recent_sum
+old_sum <- read_csv(file = "./Data/hr_acc_sum_data.csv")
+hr_all_acc <- as.vector(old_sum$hr_all_acc); length(hr_all_acc) <- nrow(recent_sum)
+hr_impute <- as.vector(old_sum$hr_impute); length(hr_impute) <- nrow(recent_sum)
+recent_sum <- cbind(recent_sum, hr_all_acc, hr_impute)
+
+#Find out the last spot I left off (the first NA)
+recent_sum[min(which(is.na(recent_sum$hr_all_acc))),]$date
 
 select_date <- function(mm,dd,yyyy){
   select_date <- paste0(yyyy, "-", mm, "-", dd)
   return(select_date)
 } #needed date in the Global Environment
   #so I wrote a separate function for it
+
 summary_plots <- function(my_date){
   
-  if(nrow(record %>% filter(date == my_date)) == 0){
+  if(nrow(recent_records %>% filter(date == my_date)) == 0){
     print("No summary data for this date")
     break}
   
 #Condensing record data for the specific day into 3 second intervals to improve plotting
-record_by_threes <- record %>% 
+record_by_threes <- recent_records %>% 
   filter(date == my_date) %>% #filter by date
   mutate(threes = (1:nrow(.) %/% 3)+1) %>% #not quite sure what this %/% does, but it seems to work
   #adding 1 so I can use threes in place of time
@@ -192,7 +186,7 @@ p_speed <- record_by_threes %>%
   ggplot(., aes(x=threes, y=speed_min.mi, group=1)) + geom_path(color = 'blue') + 
   scale_y_continuous(trans = "reverse") + xlab("time (3 sec int.)")
   
-p_sum <- sum_data %>%
+p_sum <- recent_sum %>%
   select(-caret::nearZeroVar(.)) %>% #removes near zero variance columns and gives meaningful info
   filter(date == my_date) %>%
   select(avg_heart_rate, avg_speed, total_distance, TimeMinutes) %>%
@@ -201,7 +195,7 @@ p_sum <- sum_data %>%
   round(., 2) %>%
   gridExtra::tableGrob()
 
-p_lap <- lap %>%
+p_lap <- recent_laps %>%
   select(-caret::nearZeroVar(.)) %>%
   filter(date == my_date) %>%
   select(avg_heart_rate, avg_speed, total_distance, total_timer_time) %>%
@@ -232,30 +226,29 @@ if (hr_all_acc_value == "no"){
 hr_impute_value <- dlgInput("Should this HR data be imputed? Enter 'yes' or 'no'", default="no")$res
 } 
 
-#Add information to sum_data
+#Add information to recent_sum
 
-#gives data_index value for row in sum_data
-add_HR_info_here <- sum_data %>% filter(date == my_date) %>% pull(data_index) 
+#gives data_index value for row in recent_sum
+add_HR_info_here <- recent_sum %>% filter(date == my_date) %>% pull(data_index) 
 
-  #if data hasn't already been entered for rows of sum_data being plotted
-if(all(is.na(sum_data[add_HR_info_here,] %>% select(hr_all_acc, hr_impute))) == T){
+  #if data hasn't already been entered for rows of recent_sum being plotted
+if(all(is.na(recent_sum[add_HR_info_here,] %>% select(hr_all_acc, hr_impute))) == T){
   #sets input of dialog box to hr_all_acc & hr_impute for specific rows
-  sum_data[add_HR_info_here,]$hr_all_acc <- hr_all_acc_value
-  sum_data[add_HR_info_here,]$hr_impute <- hr_impute_value
+  recent_sum[add_HR_info_here,]$hr_all_acc <- hr_all_acc_value
+  recent_sum[add_HR_info_here,]$hr_impute <- hr_impute_value
 } else{print(
     paste0("Data has already been written for columns with data index of:", 
            add_HR_info_here))}
 
-return(sum_data)
+return(recent_sum)
 } 
 
-load(file = "Objects/sum_data_HRacc") #load previous sum data to add to it
-my_date <- select_date(mm=08, yyyy=2020, dd=01)
-sum_data <- summary_plots(my_date)
-save(sum_data, file = "Objects/sum_data_HRacc")
+my_date <- select_date(mm=08, yyyy=2020, dd=03)
+recent_sum <- summary_plots(my_date)
+recent_sum %>% select(contains("hr_")) %>% write_csv(file = "./Data/hr_acc_sum_data.csv")
   #pretty slow, doesn't work great when there are lots of laps
   #Merges data from the same date together, isn't always perfect
-  #Doesn't work returning sum_data to Global Environment
+  #Doesn't work returning recent_sum to Global Environment
 
 
 #### Future ideas: ####
@@ -281,15 +274,15 @@ save(sum_data, file = "Objects/sum_data_HRacc")
 #Compare day-before or 2-day-before TRIMP to morning HRV
   #Might get stronger correlations if you classify TRIMP into easy/medium/hard
   #Do the same thing for TRIMP/hr
-sum_data %>% filter(TRIMP <0) 
-nrow(sum_data)
-hist(sum_data$TRIMP, breaks = 30)
+recent_sum %>% filter(TRIMP <0) 
+nrow(recent_sum)
+hist(recent_sum$TRIMP, breaks = 30)
 
-#combine sum_data by date
+#combine recent_sum by date
 #long-term it'd be better to do this with record data
 #this just looks at Fall 2020 season 
 
-merge_sum_data <- sum_data %>% as_tibble() %>%
+merge_recent_sum <- recent_sum %>% as_tibble() %>%
   filter(start_time > "2020-09-06") %>%
   select(date, TimeMinutes, TRIMP, TRIMP.hour, avg_heart_rate, max_heart_rate.1) %>%
   #group_by(date) %>%
@@ -315,14 +308,14 @@ merge_hrv_data <- timeanalysis %>%
   mutate(date = lubridate::as_date(date)) %>%
   filter(date > "2020-09-06")
 
-hrv_sum_data <- merge(x=merge_sum_data, y=merge_hrv_data, all.x = T)
+hrv_recent_sum <- merge(x=merge_recent_sum, y=merge_hrv_data, all.x = T)
 
-hrv_sum_data %>% janitor::get_dupes(date)
+hrv_recent_sum %>% janitor::get_dupes(date)
 
-View(hrv_sum_data)
-hist(hrv_sum_data$max_HR)
+View(hrv_recent_sum)
+hist(hrv_recent_sum$max_HR)
 
-hrv_sum_data <- hrv_sum_data %>%
+hrv_recent_sum <- hrv_recent_sum %>%
   mutate(
     lead1 = lead(rMSSD),
     lead2 = lead(rMSSD, 2),
@@ -332,7 +325,7 @@ hrv_sum_data <- hrv_sum_data %>%
          )
 
 library(colorspace)
-hrv_sum_data %>%
+hrv_recent_sum %>%
   #filter(TRIMP_sum < 150) %>% #realistic values 
 ggplot(data = ., aes(x=minutes, y=lead2)) + geom_point(aes(alpha = 0.3)) + geom_smooth(method = "loess") + 
   ylab("rMSSD Two Days Later") + xlab("Minutes Run")
