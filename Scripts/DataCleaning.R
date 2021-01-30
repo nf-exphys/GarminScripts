@@ -2,21 +2,6 @@ library(tidyverse, warn.conflicts = F)
 ##### Load 2020 Data #####
   #Long term, I think calling this data from SQL is probably the way to go
   #So much of what I'm doing is dependent on relational data
-# load(file = "./Objects/FitDFCleanSort2020-10-12.Rdata") #loads data
-# Fit.DF2 <- Fit.DF #renames to avoid being overwritten
-# 
-# load(file = "./Objects/FitDFCleanSort2020-08-24.Rdata") #loads data
-# data <- c(Fit.DF, Fit.DF2) #combines first two data loads
-# remove(Fit.DF, Fit.DF2) #to avoid confusion
-# 
-# load(file = "./Objects/FitDFCleanSort2020-12-18_Oct11_Oct31.Rdata") #loads data
-# Fit.DF3 <- Fit.DF #renames to avoid being overwritten
-# 
-# load(file = "./Objects/FitDFCleanSort2020-12-18_Oct31_Dec17.Rdata") #loads data
-# Fit.DF4 <- Fit.DF #renames for clarity
-# 
-# data <- c(data, Fit.DF3, Fit.DF4)
-# remove(Fit.DF, Fit.DF3, Fit.DF4)
 
 #Read in any new files, save as CSV
 source("./Scripts/Fit File Import From Watch.R")
@@ -136,21 +121,18 @@ recent_records <- subset(recent_records, ID %in% only_running_IDs)
 
 ##### Checking accuracy of HR data #####
 
-#Next step is going to have to be to make a function to give me a Garmin Connect Like output
-  #Input date - might need to merge same date first or create warning if multiple activities on same date
-  #Plot of HR, pace, table of key metrics from summary data, and lap-by-lap data
-  #Then have some way to say "Yes, this is accurate", "This is worth imputing", or "No this is garbage"
 library(gridExtra); library(svDialogs)
 
 #Could be good to add background shading to plot to show HR zones 
   #https://stackoverflow.com/questions/61161960/how-do-i-add-shaded-backgrounds-to-ggplot
-
 
 #Take old summary data stored in different format and add it to recent_sum
 old_sum <- read_csv(file = "./Data/hr_acc_sum_data.csv")
 hr_all_acc <- as.vector(old_sum$hr_all_acc); length(hr_all_acc) <- nrow(recent_sum)
 hr_impute <- as.vector(old_sum$hr_impute); length(hr_impute) <- nrow(recent_sum)
 recent_sum <- cbind(recent_sum, hr_all_acc, hr_impute)
+
+recent_sum <- recent_sum %>% mutate(data_index = row_number())
 
 #Find out the last spot I left off (the first NA)
 recent_sum[min(which(is.na(recent_sum$hr_all_acc))),]$date
@@ -243,13 +225,14 @@ if(all(is.na(recent_sum[add_HR_info_here,] %>% select(hr_all_acc, hr_impute))) =
 return(recent_sum)
 } 
 
-my_date <- select_date(mm=08, yyyy=2020, dd=03)
-recent_sum <- summary_plots(my_date)
-recent_sum %>% select(contains("hr_")) %>% write_csv(file = "./Data/hr_acc_sum_data.csv")
-  #pretty slow, doesn't work great when there are lots of laps
-  #Merges data from the same date together, isn't always perfect
-  #Doesn't work returning recent_sum to Global Environment
+#Imputation question addresses whether simple imputation would fix HR artifacts
+#Anything more than simple HR fix -> select "no"
 
+my_date <- select_date(mm=10, yyyy=2020, dd=09)
+recent_sum <- summary_plots(my_date)
+recent_sum %>% select(ID, contains("hr_"), data_index) %>% write_csv(file = "./Data/hr_acc_sum_data.csv")
+ #Merges data from the same date together, isn't always perfect but a decent start
+  
 
 #### Future ideas: ####
 
@@ -271,7 +254,7 @@ recent_sum %>% select(contains("hr_")) %>% write_csv(file = "./Data/hr_acc_sum_d
 #Take accurate HR data and try to impute HR data that was marked as worth imputing
 #If I'm able to get corrected HR data, I should re-calculate TRIMP
   
-#Compare day-before or 2-day-before TRIMP to morning HRV
+#### Compare day-before or 2-day-before TRIMP to morning HRV ####
   #Might get stronger correlations if you classify TRIMP into easy/medium/hard
   #Do the same thing for TRIMP/hr
 recent_sum %>% filter(TRIMP <0) 
@@ -329,3 +312,68 @@ hrv_recent_sum %>%
   #filter(TRIMP_sum < 150) %>% #realistic values 
 ggplot(data = ., aes(x=minutes, y=lead2)) + geom_point(aes(alpha = 0.3)) + geom_smooth(method = "loess") + 
   ylab("rMSSD Two Days Later") + xlab("Minutes Run")
+
+
+#### Speed Div By HR ####
+#Note as of 01/29/2021: Questionable accuracy
+  #May be more useful after HR correction or identifying steady state data
+# ggplot(data = recent_records, aes(x = date)) +geom_histogram(bins = 30) #histogram of # of rows roughly by month
+# speed_cat <- recent_records$speed %>% cut(.,
+#                                   breaks = c(0,3.0,3.2512, 3.576, 4.235, 4.733, 5.548, Inf),
+#                                   include.lowest = T,
+#                                   labels = c("recovery","slow", "easy", "medium","tempo-5K", "5K-mile", "mile&faster")
+# )
+# recent_records <- cbind(recent_records, speed_cat)
+# #recovery is slower than 9:00
+# #9:00-8:15 is slow
+# #8:15 - 7:30 is easy
+# #7:30 - 6:20 is medium
+# #6:20 - 5:40 is tempo-5K
+# #5:40 - 4:50 is 5K-mile
+# 
+# speed_HR_data <- recent_records %>% 
+#   arrange(date) %>%
+#   mutate(date = as.POSIXct(substr(date, 1,10)),
+#          #goes up with decreased HR@same speed or increased speed@same HR
+#         speed.HR = (speed*3.6/(heart_rate/100)) 
+#     
+#   ) %>% #converts speed to km/hr & divides HR by 100 for easier numbers
+#   group_by(date, speed_cat) %>%
+#   summarise(speed.HR = mean(speed.HR)) #takes forever but works
+# 
+# speed_HR_data %>% 
+#   filter(date > "2020-09-01") %>%
+#   filter(speed_cat == "tempo-5K" | speed_cat == "medium") %>%
+#   #subset(.,speed_cat == "tempo-5K") %>%
+#   ggplot(data = ., aes(x = date, y=speed.HR, colour = speed_cat)) + geom_smooth() + ylim(6,16)
+# #ggplot(data = ., aes(x = dmy, y=speed.HR)) + geom_smooth() + ylim(8.5,10) #removes category, just looks at all speed/HR data
+# 
+# #Broader speed categories - still need to finish this
+# speed_cat2 <- recent_records$speed %>% cut(.,
+#                                    breaks = c(0,3.2512, 3.576, 4.235, 5.36, Inf),
+#                                    include.lowest = T,
+#                                    labels = c("rec/slow", "easy", "medium","tempo-~2mile", "TooFastForHR")
+# )#5.36 is 5:00 min/mile
+# recent_records <- cbind(recent_records, speed_cat2)
+# 
+# speed_HR_data <- recent_records %>% 
+#   arrange(date) %>%
+#   drop_na(heart_rate, speed) %>%
+#   mutate( #date = as.POSIXct(substr(date, 1,10)),
+#          speed.HR = (speed*3.6/(heart_rate/100))
+#   ) %>% 
+#   #group_by(date) %>%
+#   group_by(date, speed_cat2) %>%
+#   summarise(speed.HR = mean(speed.HR)) #takes forever but works
+# 
+# speed_HR_data %>% 
+#   filter(date > "2020-07-01") %>%
+#   filter(speed_cat2 != "rec/slow") %>%
+#   #subset(.,speed_cat == "tempo-5K") %>%
+#   ggplot(data = ., aes(x = date, y=speed.HR, colour = speed_cat2)) + geom_smooth() + ylim(9,11)
+# 
+# speed_HR_data %>%
+#   filter(date > "2020-12-01") %>%
+# ggplot(data = ., aes(x = date, y=speed.HR)) + geom_point() + ylim(8.5,10) #removes category
+
+
