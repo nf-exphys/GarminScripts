@@ -39,8 +39,9 @@ testURL <- function(url){
 
 url_check <- testURL(link)
 
+continue <- T
 if(is.null(url_check) == T){
-  continue <- T
+  continue <- F
 }
 
 if(continue == T){
@@ -60,6 +61,8 @@ if(continue == T){
   #clear out intermediate files
   file.remove("./export.zip")
   unlink("./current_hrv", recursive = T)
+  unlink("C:\\Users\\nick.foreman\\Downloads\\export.zip", recursive = T)
+  
   print("Files successfully downloaded and copied")
   } else(print("Download link unsuccessful."))
 
