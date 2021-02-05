@@ -1,6 +1,6 @@
 #Automated import of FIT directly files from the watch
 
-library(fitFileR); library(tidyverse); library(openxlsx)
+library(FITfileR); library(tidyverse); library(openxlsx)
 
 #Creates functions to merge one-row data into sum_data data frame
 CondenseDataFromWatch <- function(data, i){
@@ -74,6 +74,18 @@ if(length(files_to_read) == 0){
 }
 
 if(continue == T){
+  read_in_now <- readline("Do you want to read in new files right now? Y or N...")
+  if(read_in_now == "Y"){
+    msg <- paste0("Okay, will continue reading in ", length(files_to_read), " files")
+    print(msg)
+  } else{
+    continue <- F
+  }
+
+}
+
+if(continue == T){
+
   files_to_read <- paste0(watch_path, files_to_read)
   
   #Sets n as the number of files to be read
@@ -93,7 +105,7 @@ if(continue == T){
   
   Fit.DF <- foreach(i=1:n) %dopar% {
     #Reads in each fit file then puts fit files into a list as data frames
-    IndivFitFile <- fitFileR::readFitFile(files_to_read[i])
+    IndivFitFile <- FITfileR::readFitFile(files_to_read[i])
     Fit.DF[[i]] <- lapply(IndivFitFile, data.frame, stringsAsFactors = FALSE)
     
   }
@@ -102,7 +114,7 @@ if(continue == T){
   if(is.null(Fit.DF[[1]]) == T){
     print("Parallel processing didn't work. Running normal for loop instead")
     Fit.DF <- for(i in 1:n){
-      IndivFitFile <- fitFileR::readFitFile(files_to_read[i]) 
+      IndivFitFile <- FITfileR::readFitFile(files_to_read[i]) 
       Fit.DF[[i]] <- lapply(IndivFitFile, data.frame, stringsAsFactors = FALSE) 
     }
     

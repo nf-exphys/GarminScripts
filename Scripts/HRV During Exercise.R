@@ -40,8 +40,21 @@ if (length(hrv_files) < 1){
   continue <- F
 }
 
+#Check to see if I want to read in new files or not
+if(continue == T){
+  read_in_now <- readline("Do you want to process HRV data right now? Y or N...")
+  if(read_in_now == "Y"){
+    msg <- paste0("Okay, will continue reading in ", length(hrv_files), " files")
+    print(msg)
+  } else{
+    continue <- F
+  }
+  
+}
+
 #Proceed with HRV script
 if(continue == T){
+  
   #Setup hrv_file storage
   hrv_list <- list()
   
