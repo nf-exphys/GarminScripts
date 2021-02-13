@@ -1,192 +1,327 @@
 library(tidyverse, warn.conflicts = F); library(RHRV)
-library(fitFileR)
+library(fitFileR); library(nonlinearTseries)
 
-#Assorted activities from late December & early January 2021
-easy_run <- fitFileR::readFitFile(fileName = "E:\\GARMIN\\ACTIVITY\\ACS81007.FIT") #easy run with Coach K
-prog_bike <- readFitFile(fileName = "E:\\GARMIN\\ACTIVITY\\B12H3747.FIT") #progression bike ride
-long_run <- readFitFile(fileName = "E:\\GARMIN\\ACTIVITY\\B1285039.FIT") #115 min long run w/~10 min progression
+#Figure out which CSVs to read in 
+hrv_file_path <- "./Data/ExportedRunData/Cleaned_CSVs/"
 
-hrv <- prog_bike$hrv$time #set the hrv data as its own object for more succinct code
-hrv <- long_run$hrv$time
-hrv <- easy_run$hrv$time
-
-#Alternatively, can read in Exercise HRV data from CSV
-  #Example: CSV from 01/09/2021 easy long run with Dylan
-hrv <- read_csv(file = "./Data/ExportedRunData/Cleaned_CSVs/2021_01_09 10_37_24 hrvdata.csv")
-
-#Read in multiple CSVs
 hrv_files <- list.files(path = "./Data/ExportedRunData/Cleaned_CSVs/", 
-                        pattern="* hrvdata.csv", full.names = T)
+                        pattern="* hrvdata.csv", full.names = F)
 
-read_csv_filename <- function(filename){
-  ret <- read_csv(filename)
-  filename <- str_remove(string = filename, pattern = "./Data/ExportedRunData/Cleaned_CSVs/")
-  filename <- str_remove(string = filename, pattern = " hrvdata.csv")
-  ret$Source <- filename #EDIT
-  ret
+previous_dfa <- list.files(path = "./Data/DFA/", pattern = "*.csv")
+
+clean_file_for_comp <- function(x){ #x is either hrv_files or previous_dfa
+  x <- str_remove_all(x, pattern = "[:alpha:]|\\.")
+  x <- str_split(x, pattern = " ", n=3)
+  x <- unlist(x)[1:2]
+  x <- paste(x[1], x[2], sep = " ")
+  x
 }
 
-hrv_list <- lapply(hrv_files, read_csv_filename)
+hrv_files <- lapply(hrv_files, clean_file_for_comp)
+previous_dfa <- lapply(previous_dfa, clean_file_for_comp)
 
-library(doParallel)
-n <- detectCores()
-registerDoParallel(n-3)
+#List of files in hrv_files not in previous dfa
+hrv_to_read <- setdiff(hrv_files, previous_dfa)
 
-all_rr_data <- list()
+#Read in previous DFA exclusions & format
+exclude_dfa <- read.table("./Data/DFA/DFA_exclusions.txt", 
+                          fill = T, col.names = c("date")) %>%
+                        pull(date)
 
-all_rr_data <- foreach(i=1:length(hrv_list), .packages = "tidyverse") %dopar% {
-  all_rr_data[[i]] <- hrv_list[[i]] %>% rename(rr = hrv) %>%
-    mutate(rr = case_when(rr < 1 ~ rr)) %>%
-    drop_na()
+#Compare hrv_to_read with DFA exclusions
+hrv_files <- setdiff(hrv_to_read, exclude_dfa)
+
+#Assume there's something new to read
+continue <- T
+
+#Stops code if there aren't new files to read
+if (length(hrv_files) < 1){
+  print("There are no new HRV files to be read. Stopping.")
+  continue <- F
 }
 
-#Now need to do artifact correction
-artifact_correction_threshold <- 0.05
-#filtered_rr_data <- tibble()
+#Check to see if I want to read in new files or not
+if(continue == T){
+  read_in_now <- readline("Do you want to process HRV data right now? Y or N...")
+  if(read_in_now == "Y"){
+    msg <- paste0("Okay, will continue reading in ", length(hrv_files), " files")
+    print(msg)
+  } else{
+    continue <- F
+  }
+  
+}
 
-#Something isn't right with Source, need to figure that out
-for(j in 1:length(all_rr_data)){
+#Proceed with HRV script
+if(continue == T){
   
-  current_rr <- all_rr_data[[j]]
+  #Setup hrv_file storage
+  hrv_list <- list()
   
-  filtered_rr_data <- foreach(i=2:nrow(current_rr), .packages = "tidyverse") %dopar% { #start at 2 because of i-1
+  #Adds dates
+  hrv_list[["source"]] <- hrv_files
+  
+  #Add file path back & import CSVs with RR intervals
+  hrv_files <- paste0(hrv_file_path, hrv_files, " hrvdata.csv")
+  hrv_list[["rr_int"]] <- lapply(hrv_files, read_csv)
+  
+  first_correction <- 0.025 #trial-and-error
+  second_correction <- 0.025 #now catch ones way outside
+  
+  #consider using cubic spline interpolation or linear interpolation
+  for (i in 1:length(hrv_list$rr_int)){
+    hrv_list$rr_int[[i]] <- hrv_list$rr_int[[i]] %>%
+      rename(rr = hrv) %>%
+      mutate(rr = case_when(rr < 1 ~ rr)) %>% #sets high values to NA
+      drop_na() %>% #drops NA values
+      mutate( #calculates acceptable range for RR intervals
+        lag_rr = lag(rr),
+        high_bound = lag(rr)*(1+first_correction),
+        low_bound = lag(rr)*(1-first_correction)
+      ) %>%
+      filter( #removes RR intervals that don't meet those bounds
+        rr < high_bound & rr > low_bound
+      ) %>%
+      mutate( #re-calculate to catch the ones that are way off
+        high_bound = lag(rr)*(1+second_correction),
+        low_bound = lag(rr)*(1-second_correction)
+      ) %>%
+      filter(
+        rr < high_bound & rr > low_bound
+      ) %>%
+      mutate(n = row_number()) %>%
+      select(n, rr) %>%
+      filter(rr < 0.7) #not the ideal way of doing this, but it'll have to work for now
+  }
+  
+  for(i in 1:length(hrv_list$rr_int)){
+    p <- hrv_list$rr_int[[i]] %>%
+      #filter(rr < 0.8) %>%
+      ggplot(data = ., aes(x=n, y=rr)) + geom_line() + ggtitle(hrv_list$source[[i]])
+    print(p)
+  }
+  
+  #Writes all cleaned CSVs to text files to be read in by RHRV
+  for(i in 1:length(hrv_list$rr_int)){
+    hrv_list$rr_int[[i]] %>%
+      select(rr) %>%
+      write.table(., 
+                  file = paste0("./Text Files/cleaned_hrv_", hrv_list$source[[i]], ".txt"), 
+                  row.names = F, col.names = F)
+  }
+  
+  hrv_txt_files <- list.files(path = "./Text Files/", pattern = "cleaned_hrv*", full.names = T)
+  
+  #ADD something here to prune down hrv_txt_files to just the files in hrv_list$source
+  hrv_txt_files <- unique(grep(paste(hrv_list$source, collapse = "|"), hrv_txt_files, value = T))
+  
+  #Change to POSIXct and rearrange to RHRV format
+  for(i in 1:length(hrv_list$source)){
+    hrv_list$source[[i]] <- as.POSIXct(hrv_list$source[[i]], format = "%Y_%m_%d %H_%M_%S")
+    hrv_list$source[[i]] <- format(hrv_list$source[[i]], '%d/%m/%Y %H:%M:%S')
+  } 
+  
+  #Creates tibble with date/time in RHRV format and file path for cleaned HRV data 
+  date_and_txt <- bind_cols(as_tibble_col(unlist(hrv_list$source)), 
+                            as_tibble_col(unlist(hrv_txt_files)))
+  names(date_and_txt) <- c("date", "txt")  
+  
+  #Setup function to find rolling DFA
+  rolling_dfa <- function(date_source){
     
-    #Set high and low bounds
-    low_bound <- current_rr$rr[i-1]*(1-artifact_correction_threshold)
-    high_bound <- current_rr$rr[i-1]*(1+artifact_correction_threshold)
+    #take the date and find the associated text file
+    rr_txt <- date_and_txt %>%
+      filter(date == date_source) %>%
+      pull(txt)
     
-    if ((low_bound < current_rr$rr[i]) & (current_rr$rr[i] < high_bound)){
+    #create structure to store HRV data
+    hrv.data <- CreateHRVData() 
+    hrv.data <- SetVerbose(hrv.data, T)
+    
+    hrv.data <- LoadBeat(fileType = "RR", HRVData = hrv.data, datetime = date_source,
+                         Recordname = rr_txt)
+    
+    if(nrow(hrv.data$Beat) > 500){
+      nihr <- BuildNIHR(hrv.data)
+      PlotNIHR(nihr) #close but not quite
       
-      #filtered_rr_data <- rlist::list.append(filtered_rr_data, current_rr$rr[i])
-      filtered_rr_data <- filtered_rr_data %>% 
-        bind_rows(.,current_rr[i,])
+      nihr <- FilterNIHR(nihr, minbpm = 80, maxbpm = 200)
+      PlotNIHR(nihr) #better
+      
+      #Split data and find DFA
+      
+      step <- 120 #number of seconds per window
+      
+      nihr$Beat <- nihr$Beat %>%
+        mutate(round_time = round(Time, 1),
+               step_time = round_time + step
+        )
+      
+      #pulls RR intervals for a given window and calculates DFA a1
+      alpha1_values <- list()
+      hr_values <- list()
+      
+      for (i in seq(from=1, to=nrow(nihr$Beat), by=5)){
         
+        RRs_of_interest <- nihr$Beat %>%
+          filter(Time > round_time[i] & Time < step_time[i])
+        
+        #doesn't continue if there aren't at least 120 rows 
+        if(nrow(RRs_of_interest) < 120){
+          break
+        }
+        
+        #find HR
+        current_hr <- RRs_of_interest %>%
+          summarise(HR = mean(niHR))
+        
+        #set bounds for DFA
+        dfa_analysis <- RRs_of_interest %>%
+          pull(RR) %>%
+          dfa(time.series = ., npoints = 30, window.size.range = c(4,300))
+        
+        regression_range <- c(4,20) #based on Kubios
+        
+        dfa_est <- estimate(dfa_analysis, do.plot=F, regression.range = regression_range)
+        #dfa_est[1]
+        alpha1_values <- rlist::list.append(alpha1_values, dfa_est[1])
+        hr_values <- rlist::list.append(hr_values, current_hr)
+        
+      }
       
-    } 
+      #kept getting errors with alpha1_values = 0, filling with fake data to fix
+      if(length(alpha1_values) == 0){
+        alpha1_values <- list(0,0,0)
+        hr_values <- list(0,0,0)
+        
+      }
+      
+      alpha1_values <- alpha1_values %>%
+        unlist() %>%
+        as_tibble_col()
+      
+      hr_values <- hr_values %>%
+        unlist() %>%
+        as_tibble_col()
+      
+      dfa_values <- cbind(alpha1_values, hr_values)
+      names(dfa_values) <- c("a1", "HR")
+      
+      # dfa_values %>%
+      #   ggplot(data = ., aes(x=HR, y=a1)) + geom_smooth()
+      
+      lm_object <- lm(a1 ~ HR, data = dfa_values) 
+      
+      intercept <- as.numeric(lm_object$coefficients[1])
+      slope <- as.numeric(lm_object$coefficients[2])
+      VT_a1_HR <- (0.75-intercept)/slope
+      
+      notable_dfa_values <- list(date = nihr$datetime, 
+                                 lm = lm_object, 
+                                 HR=VT_a1_HR, 
+                                 dfa_data = dfa_values)
+      
+    }
+    else{
+      notable_dfa_values <- list(date = hrv.data$datetime)
+    }
+    return(notable_dfa_values)
+    
   }
   
-  all_rr_data[[j]] <- filtered_rr_data
+  all_dfa_values <- list()
+  all_dfa_values <- lapply(hrv_list$source, rolling_dfa)
+  
+  no_dfa <- which(lapply(all_dfa_values, length) < 4)
+  
+  #Takes files that didn't work for DFA and adds them to existing list
+  if(length(no_dfa) > 0){
+    for(i in 1:length(no_dfa)){
+      #fix formating
+      all_dfa_values[no_dfa][[i]]$date <- format(all_dfa_values[no_dfa][[i]]$date, "%Y_%m_%d %H_%M_%S")
+      #add to exclude_dfa
+      exclude_dfa <- rlist::list.append(exclude_dfa, as.character(all_dfa_values[no_dfa][[i]]$date))
+    }
+  }
+  
+  exclude_dfa <- unlist(exclude_dfa)
+  write.table(exclude_dfa, file = "./Data/DFA/DFA_exclusions.txt")
+  
+  filtered_dfa_values <- list()
+  
+  if(length(no_dfa) == 0){
+    filtered_dfa_values <- all_dfa_values
+  } else{
+    filtered_dfa_values <- all_dfa_values[-no_dfa]  
+  }
+  
+  new_dfa <- T
+  if(length(filtered_dfa_values) == 0){
+    print("No new rolling DFA data to write. Stopping")
+    new_dfa <- F
+  }
+  
+  if(new_dfa ==T){
+    for(i in 1:length(filtered_dfa_values)){
+      
+      my_date <- filtered_dfa_values[[i]]$date
+      my_date <- format(my_date, '%Y_%m_%d %H_%M_%S')
+      
+      filtered_dfa_values[[i]]$dfa_data %>%
+        write_csv(., file = paste0("./Data/DFA/", my_date, " rolling_dfa.csv"))
+      
+    }
+    
+  }
   
 }
 
-for(i in 1:length(all_rr_data)){plot(unlist(all_rr_data[[i]]), 
-                                     main = all_rr_data[[i]][[1]])}
 
-
-#Adjust filter based on plot
- all_rr_data[[1]] %>% 
-   unlist %>% as_tibble_col() %>%
-   filter(value < 0.8) 
-
-for(i in 1:length(all_rr_data)){
-  all_rr_data[[i]] <- all_rr_data[[i]] %>%
-    unlist() %>%
-    as_tibble_col()
-  }
-
- #Will need to lapply this and likely for loop for HRV data & NIHR
- #writes to txt
-write.table(filtered_rr_data, file = "./Text Files/01_09_2021_easy_long_run.txt", row.names = F, col.names = F) 
-
-hrv.data <- CreateHRVData() #create structure to store HRV data
-hrv.data <- SetVerbose(hrv.data, T)
-hrv.data <- LoadBeat(fileType = "RR", HRVData = hrv.data, 
-                     Recordname = "./Text Files/01_09_2021_easy_long_run.txt")
-nihr <- BuildNIHR(hrv.data)
-PlotNIHR(nihr) #close but not quite
-
-nihr <- FilterNIHR(nihr, minbpm = 100, maxbpm = 165)
-PlotNIHR(nihr) #better
-
-#Split data and find DFA
-library(nonlinearTseries)
-step <- 120 #number of seconds per window
-
-#Number of minutes divided by window size
-n<- max(nihr$Beat$Time)/step
-
-nihr$Beat$split <- cut_interval(1:nrow(nihr$Beat), floor(n), boundary = 0)
-
-# one <- which(round(nihr$Beat$Time,0) == 300)
-# two <- which(round(nihr$Beat$Time,0) == 600)
-# three <- which(round(nihr$Beat$Time,0) == 900)
-# four <- which(round(nihr$Beat$Time,0) == 1200)
-# five <- which(round(nihr$Beat$Time,0) == 1500)
+#### Extra code for graphing ####
+# filtered_dfa_values[[i]]$dfa_data %>%
+#   filter(a1 < 1.0) %>%
+#   ggplot(data = ., aes(x=HR, y=a1)) + geom_point()
 # 
-# nihr$Beat$split <- as.character(nihr$Beat$split)
-# nihr$Beat$split[1:one[1]] <- 1
-# nihr$Beat$split[one[2]:two[1]] <- 2
-# nihr$Beat$split[two[2]:three[1]] <- 3
-# nihr$Beat$split[three[2]:four[1]] <- 4
-# nihr$Beat$split[four[2]:five[1]] <- 5
-# nihr$Beat$split[(five+1):length(nihr$Beat$split)] <- 6
-
-split_data <- nihr$Beat %>%
-  group_by(split) %>%
-  group_split(.keep = T)
-#View(split_data)
-
-#Find HR for each split
-summary_dfa <- nihr$Beat %>%
-  group_by(split) %>%
-  summarise(HR = mean(niHR))
-#View(summary_dfa)
-
-dfa_list <- list()
-i=1
-for (i in 1:length(split_data)){
-#if(nrow(split_data[[i]])<(step/2)){next}
-
-dfa_analysis <- nonlinearTseries::dfa(time.series = split_data[[i]]$RR, npoints = 30, window.size.range = c(4,300))
-
-regression_range <- c(4,30) #based on Kubios
-
-dfa_est <- estimate(dfa_analysis, do.plot=T, regression.range = regression_range)
-dfa_est[1]
-dfa_list <- rlist::list.append(dfa_list, dfa_est[1])
-}
-
-summary_dfa <- dfa_list %>% unlist() %>% as_tibble_col() %>% cbind(summary_dfa,.)
-
-lm_object <- summary_dfa %>%
-  #filter(value < 0.75) %>%
-  lm(value ~ HR, data = .) 
-
-as.numeric(lm_object$coefficients[1])
-as.numeric(lm_object$coefficients[2])
-
-summary_dfa %>%
-  #filter(value < 0.75) %>%
-ggplot(data = ., aes(x=HR, y=value)) + geom_point() + geom_smooth(method = "lm")
-
-
-# #Pulls together RR intervals from single file if in list
-# rr_data <- matrix(ncol=1)
-# for (i in 1:length(hrv)){
-#   if("list" %in% class(hrv)){
-#     if (i==1){
-#       rr_data <- tibble(hrv=as.numeric(unlist(hrv[i]))) %>%
-#         pivot_longer(cols = hrv, names_to = NULL, values_to = "rr") %>%
-#         mutate(rr = case_when(rr < 60 ~ rr)) #drops 'NA' values
-#       } else{
-#       rr_data <- tibble(hrv=as.numeric(unlist(hrv[i]))) %>%
-#         pivot_longer(cols = hrv, names_to = NULL, values_to = "rr") %>%
-#         mutate(rr = case_when(rr < 60 ~ rr)) %>% #drops 'NA' values
-#         bind_rows(rr_data,.) %>%
-#         filter(is.na(rr) == F) %>%
-#         select(rr)
-#     }
-#   } else {
-#     stop("HRV data isn't a list. This for loop isn't needed")
-#   }
-#   
+# #Plotting HR and DFA
+# for(i in 1:length(filtered_dfa_values)){
+# 
+# #Add column with n  
+# filtered_dfa_values[[i]]$dfa_data <- filtered_dfa_values[[i]]$dfa_data %>%
+#   as_tibble() %>%
+#   mutate(n = row_number())
+# 
+# #DFA data
+# 
+# p1 <- ggplot() + 
+#   geom_point(data = filtered_dfa_values[[i]]$dfa_data, aes(x=n, y=a1), color = "blue") + 
+#   ggtitle(filtered_dfa_values[[i]]$date)
+# 
+# #HR data
+# p2 <- ggplot() + 
+#   geom_point(data = filtered_dfa_values[[i]]$dfa_data, aes(x=n, y=HR), color = "red") + 
+#   ggtitle(round(filtered_dfa_values[[i]]$HR), 0)
+# 
+# #Setup plot layout
+# gridExtra::grid.arrange(p1, p2, nrow=2)
 # }
 # 
-# #Filters RR intervals from single file if in tibble already
-# rr_data <- hrv %>% 
-#   rename(rr = hrv) %>%
-#   mutate(rr = case_when(rr < 60 ~ rr)) %>%
-#   drop_na()
 # 
-# #Plot of RR intervals over time
-# ggplot(data = rr_data, aes(y=rr, x=row_number(rr))) + geom_point()
+# dfa_hr_date <- data.frame(hr=numeric(), date = numeric())
+# for(i in 1:length(filtered_dfa_values)){
+#   temp_df <- data.frame(hr = filtered_dfa_values[[i]]$HR, date = filtered_dfa_values[[i]]$date)
+#   dfa_hr_date <- rbind(dfa_hr_date, temp_df)
+# }
+# dfa_hr_date %>%
+#   filter(hr < 200 & hr > 100) %>%
+#   summarise(HR = mean(hr))
+# ggplot(data = ., aes(x=date, y=hr)) + geom_line()
+
+
+
+#One-off graphs of alpha1 and HR
+# p1 <- ggplot() + 
+#   geom_point(data = notable_dfa_values$dfa_data, aes(x=n, y=a1), color = "blue") + 
+#   ggtitle(notable_dfa_values$date)
+# p2 <- ggplot() + 
+#   geom_point(data = notable_dfa_values$dfa_data, aes(x=n, y=HR), color = "red")
+# gridExtra::grid.arrange(p1, p2, nrow=2)

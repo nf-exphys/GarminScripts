@@ -2,6 +2,8 @@ library(RHRV); library(stringr)
 
 # Import Data ---------------------------------------------------
 
+#Add source 
+
 DateChrTxt <- list.files(path = ".\\HRV Files to be Read\\", pattern = ".txt", full.names = FALSE) 
   #For use in naming/setting datetime field
 DateChrNoTxt <- sub(pattern = "(.*)\\..*$", replacement = "\\1", basename(DateChrTxt)) #removes file extension
