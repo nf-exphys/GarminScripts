@@ -83,41 +83,28 @@ library(car); vif(model.forward)
 #### Homework ####
 
 #Variables to keep:
-# Prop of female lit in district, literacy
-# higher-income district, highincome (1=high)
-# Geo location in central study hub, lucknow (1=in central hub)
-# Prop pts. >= 35 years, age35plus
-# Mean age birth attendants, baage
-# Years since last training, balasttrained
-# Years of exp., baexperience
-# Prev neonatal mortality at the facility level, died0sbrbaseline
-# Prop c-section, csection
-# >=50% deliveries attended by >=1 aux nurse midwife, anmonlybin (1=yes)
+#literacy, highincome, age35plus, ageunder25, scheduled, 
+#obc, meangravida, complicbefore, anemia
 
-#List of variables:
-#literacy, highincome, lucknow, age35plus, baage, balasttrained, baexperience, 
-#died0sbrbaseline, csection, anmonlybin
 #Goal is to find associations with maternal morbidity (morbid)
 library(tidyverse)
 mat_data <- read_csv(file = file.choose())
 
 mat_data_slim <- mat_data %>%
-  select(morbid, literacy, highincome, lucknow, 
-         age35plus, baage, balasttrainedln, baexperienceln,
-         died0sbrbaseline, csectionln, anmonlybin) %>%
+  select(morbid, literacy, highincome, age35plus, 
+         ageunder25, scheduled, obc, meangravida, complicbefore, anemia, lucknow) %>%
   drop_na() %>%
-  #highincome, lucknow, anmonlybin are factors
+  #high income and lucknow are factors
   mutate(highincome = as.factor(highincome),
-   lucknow = as.factor(lucknow),
-   anmonlybin = as.factor(anmonlybin))
+         lucknow = as.factor(lucknow)
+         )
 
-#correlation matrix
-#cor(syncmov2[,c("PainTolerance", "PainToleranceBefore","CloseDiff")], use = "complete.obs")
-#Add correlation matrix here
+#EDA
+ggplot(data = mat_data_slim, aes(x=morbid)) + geom_histogram(bins = 10, fill = "black") +
+  ggtitle("Proportions of Severe Maternal Morbidity in the BetterBirth Dataset") + 
+  xlab("Morbidity Proportions") + ylab("Count")
 
-#For now, run these all without interactions.
-#Consider running a model with all interactions first and then adding those interaction terms
-#to the fwd/backward elim models
+psych::describe(mat_data_slim) %>% select(n, mean, sd, median, range)
 
 fullmodel<-glm(data=mat_data_slim, 
                morbid ~ .)
@@ -128,18 +115,20 @@ library(stats)
 
 #start with null model for fwd selection, go from lower (null) to upper (all pred)
 model.forward<-step(nullmodel, direction="forward", 
-                    scope=list(upper = ~ literacy + highincome + lucknow + age35plus + 
-                                 baage + balasttrainedln + baexperienceln + died0sbrbaseline +
-                                 csectionln + anmonlybin,
+                    scope=list(upper = ~ literacy + 
+                                 highincome + age35plus +
+                                 ageunder25+ scheduled + obc +
+                                 meangravida + complicbefore + anemia + lucknow,
                                lower = ~ 1))
 summary(model.forward)
 
 #bkwrd elim model from full model to null
 model.backward<-step(fullmodel, 
                      direction="backward", 
-                     scope=list(upper = ~ literacy + highincome + lucknow + age35plus + 
-                                  baage + balasttrainedln + baexperienceln + died0sbrbaseline +
-                                  csectionln + anmonlybin,
+                     scope=list(upper = ~ literacy + 
+                                  highincome + age35plus +
+                                  ageunder25+ scheduled + obc +
+                                  meangravida + complicbefore + anemia + lucknow,
                                 lower = ~ 1))
 summary(model.backward)
 
@@ -147,8 +136,68 @@ summary(model.backward)
 summary(model.backward)
 summary(model.forward)
 
-#model diagnostics
-library(ggfortify);autoplot(model.backward)
+#95% CIs for model coefficients 
+confint(model.forward)
+confint(model.backward)
 
-diag.model<-ls.diag(model.backward)
-names(diag.model)
+#model diagnostics
+
+#diagnostic plots
+library(ggfortify)
+autoplot(model.backward)
+autoplot(model.forward)
+
+#outliers & influential points
+diag.model.bwd<-ls.diag(model.backward)
+diag.model.fwd<-ls.diag(model.forward)
+
+which(diag.model.bwd$cooks > 1)
+which(diag.model.fwd$cooks > 1)
+
+#variance inflation factor, goal is <4
+car::vif(model.forward)
+car::vif(model.backward)
+
+#Re-run without influential points, keep names the same
+mat_data_slim <- mat_data %>%
+  select(morbid, literacy, highincome, age35plus, 
+         ageunder25, scheduled, obc, meangravida, complicbefore, anemia, lucknow) %>%
+  drop_na() %>%
+  #high income and lucknow are factors
+  mutate(highincome = as.factor(highincome),
+         lucknow = as.factor(lucknow)
+  )
+mat_data_slim <- mat_data_slim[-c(34,36),]
+
+fullmodel<-glm(data=mat_data_slim, 
+               morbid ~ .)
+nullmodel<-glm(data=mat_data_slim, morbid ~ 1)
+#start with null model for fwd selection, go from lower (null) to upper (all pred)
+model.forward<-step(nullmodel, direction="forward", 
+                    scope=list(upper = ~ literacy + 
+                                 highincome + age35plus +
+                                 ageunder25+ scheduled + obc +
+                                 meangravida + complicbefore + anemia + lucknow,
+                               lower = ~ 1))
+#bkwrd elim model from full model to null
+model.backward<-step(fullmodel, 
+                     direction="backward", 
+                     scope=list(upper = ~ literacy + 
+                                  highincome + age35plus +
+                                  ageunder25+ scheduled + obc +
+                                  meangravida + complicbefore + anemia + lucknow,
+                                lower = ~ 1))
+#Compare the two
+summary(model.backward)
+summary(model.forward)
+
+autoplot(model.backward)
+autoplot(model.forward)
+
+#outliers & influential points
+diag.model.bwd<-ls.diag(model.backward)
+diag.model.fwd<-ls.diag(model.forward)
+
+#Cooks Distance
+which(diag.model.bwd$cooks > 1)
+which(diag.model.fwd$cooks > 1)
