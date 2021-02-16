@@ -108,16 +108,28 @@ if(continue == T){
     IndivFitFile <- FITfileR::readFitFile(files_to_read[i])
     Fit.DF[[i]] <- lapply(IndivFitFile, data.frame, stringsAsFactors = FALSE)
     
+    test_record <- FITfileR::records(files_to_read[1])
+    list.files(system.file("extdata", "Activities", package = "FITfileR"))
+    fenix6_file <- system.file("extdata", "Activities", "garmin-fenix6-swim.fit", 
+                               package = "FITfileR")
+    fenix6 <- readFitFile(fenix6_file)
+    test_file <- "L:/Garmin/ACTIVITY/ACO81542.FIT"
+    fenix6_records <- records(fenix6)
+    listMessageTypes(fenix6)
+    print("yes")
+    getMessagesByType(fenix6, message_type = "sport")
+    
   }
   
   #Sometimes parallel processing doesn't work. If so, just run a normal for loop
   if(is.null(Fit.DF[[1]]) == T){
     print("Parallel processing didn't work. Running normal for loop instead")
     Fit.DF <- for(i in 1:n){
-      IndivFitFile <- FITfileR::readFitFile(files_to_read[i]) 
+      IndivFitFile <- fitFileR::readFitFile(files_to_read[i]) 
       Fit.DF[[i]] <- lapply(IndivFitFile, data.frame, stringsAsFactors = FALSE) 
     }
     
+    ?fitFileR::readFitFile()
   }
   
   #do_par_loop <- proc.time()-start
