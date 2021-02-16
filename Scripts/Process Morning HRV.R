@@ -2,7 +2,7 @@ library(RHRV); library(tidyverse)
 
 # Import Data ---------------------------------------------------
 
-source("Import HRV from email.R") 
+source("./Scripts/Import HRV from email.R") 
 remove(list = ls())
 
 DateChrTxt <- list.files(path = "./HRV Files to be Read/", pattern = ".txt", full.names = FALSE) 
