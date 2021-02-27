@@ -112,11 +112,11 @@ sum_data <- sum_data %>%
   group_split()
 
 for (i in 1:length(records)){
-  write.csv(records[[i]], file = recordfile[[i]], row.names = FALSE)
-  write.csv(laps[[i]], file = lapfile[[i]], row.names = FALSE)
-  write.csv(hrv_data[[i]], file = hrvfile[[i]], row.names = FALSE)
-  write.csv(sum_data[[i]], file = sumdatafile[[i]], row.names = FALSE)
-}
+    write.csv(records[[i]], file = recordfile[[i]], row.names = FALSE)
+    write.csv(laps[[i]], file = lapfile[[i]], row.names = FALSE)
+    write.csv(hrv_data[[i]], file = hrvfile[[i]], row.names = FALSE)
+    write.csv(sum_data[[i]], file = sumdatafile[[i]], row.names = FALSE)  
+  }
   
 
 # Move Files --------------------------------------------------------------

@@ -99,10 +99,11 @@ graph_start_date <- Sys.Date()-21
 timeanalysis %>% 
   filter(date > graph_start_date) %>%
   ggplot(data = ., aes(datetime)) + 
+  geom_ribbon(aes(ymin=RMSSD2mon-RMSSD2monSD, ymax=RMSSD2mon+RMSSD2monSD), fill="azure2", alpha=0.80) + 
   geom_bar(aes(y= rMSSD), colour = NA, fill = "grey", alpha = 0.5, stat = 'identity') + 
   geom_line(aes(y = RMSSD2mon), color = "green", alpha = 0.9) +
-  geom_ribbon(aes(ymin=RMSSD2mon-RMSSD2monSD, ymax=RMSSD2mon+RMSSD2monSD), fill="azure2", alpha=0.80) + 
-  geom_line(aes(y = RMSSD7d), color = "blue", size = 0.75) 
+  geom_line(aes(y = RMSSD7d), color = "blue", size = 0.75) + 
+  ggtitle("Daily RMSSD (grey) + 2 mon SD (blue stripe) + 7d (blue) and 2mon (green)")
 #No need to add coord_cartesian on this one, doesn't improve view
 
 
@@ -111,7 +112,7 @@ timeanalysis %>%
   filter(date > graph_start_date) %>%
   ggplot(data = ., aes(datetime)) + 
   geom_bar(aes(y= lnRMSSD), colour = NA, fill = "grey", alpha = 0.5, stat = 'identity') + 
-  geom_line(aes(y = lnRMSSD2mon), color = "green", alpha = 0.9) +
   geom_ribbon(aes(ymin=lnRMSSD2mon-lnRMSSD2monSD, ymax=lnRMSSD2mon+lnRMSSD2monSD), fill="azure2", alpha=0.80) + 
+  geom_line(aes(y = lnRMSSD2mon), color = "green", alpha = 0.9) +
   geom_line(aes(y = lnRMSSD7d), color = "blue", size = 0.75) +
-  coord_cartesian(ylim=c(3.25,4.75))
+  coord_cartesian(ylim=c(3,4.75))
