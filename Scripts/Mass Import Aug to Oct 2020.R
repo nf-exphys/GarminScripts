@@ -226,7 +226,7 @@ for (i in 1:n) {
 cleanedFitDF <- paste0(".\\FitDFCleaned", Sys.Date(), ".Rdata")
 
 save(Fit.DF, file = cleanedFitDF)
-###Start here 10/12
+
 # Fill In Columns --------------------------------------------------
 
 for (i in 1:n) {
@@ -308,7 +308,8 @@ for (i in 1:n) {
 }
 
 cleanSortFitDF <- paste0(".\\FitDFCleanSort", Sys.Date(), ".Rdata")
-save(Fit.DF, file = cleanSortFitDF)
+Fit.DF2 <- Fit.DF
+save(Fit.DF2, file = cleanSortFitDF)
 
 # Add Timestamp ID --------------------------------------------------------
 
