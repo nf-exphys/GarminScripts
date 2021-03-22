@@ -4,9 +4,10 @@ library(fitFileR); library(data.table); library(tidyverse)
 loadfile <- "E:\\GARMIN\\ACTIVITY\\AC8F0553.FIT" #load file straight from the watch
 GarminFile <- readFitFile(loadfile)
 
-loadfile3 <- "./Data/5868513078/5868513078_ACTIVITY.fit"
+loadfile3 <- "./Data/ExportedRunData/Old_Fit_Files/B2FJ1553.FIT"
 GarminFile3 <- readFitFile(loadfile3)
-
+FITfileR::file_id(GarminFile3)
+FITfileR::laps(GarminFile3)
 #GarminFile.lapp <- lapply(GarminFile2, data.frame, stringsAsFactors = FALSE)
 #GarminFile <- lapply(GarminFile, data.frame, stringsAsFactors = FALSE)
 

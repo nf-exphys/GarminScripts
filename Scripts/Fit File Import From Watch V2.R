@@ -2,6 +2,17 @@
 
 library(FITfileR); library(tidyverse); library(openxlsx)
 
+if(!requireNamespace("remotes")) {
+  install.packages("remotes")
+}
+remotes::install_github("grimbough/FITfileR")
+
+#last run read in was 02-26 at ~8:30 pm
+#oldest run on watch is from 03/16
+#data is missing from the 7 mile on 03/16 AM (6439863961) to
+# the 43 minute run on 02/27 (6345777580)
+#plus the runs currently on the watch
+
 # Import Data ---------------------------------------------------
 watch_path <- "E:\\GARMIN\\ACTIVITY\\"
 alt_watch_path <- "L:\\GARMIN\\ACTIVITY\\"
