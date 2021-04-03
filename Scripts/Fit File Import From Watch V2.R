@@ -5,13 +5,13 @@ library(FITfileR); library(tidyverse); library(openxlsx)
 if(!requireNamespace("remotes")) {
   install.packages("remotes")
 }
-remotes::install_github("grimbough/FITfileR")
+
+#remotes::install_github("grimbough/FITfileR")
 
 #last run read in was 02-26 at ~8:30 pm
 #oldest run on watch is from 03/16
 #data is missing from the 7 mile on 03/16 AM (6439863961) to
 # the 43 minute run on 02/27 (6345777580)
-#plus the runs currently on the watch
 
 # Import Data ---------------------------------------------------
 watch_path <- "E:\\GARMIN\\ACTIVITY\\"
@@ -63,7 +63,6 @@ files_to_read <- paste0(watch_path, files_to_read)
 #Sets n as the number of files to be read
 n <- length(files_to_read)
 
-
 #Might have to add some sort of condition here
 
 all_data <- lapply(files_to_read, readFitFile)
@@ -82,13 +81,24 @@ for (i in 1:length(records)){
 
 laps <- lapply(all_data, laps)
 
-hrv_data <- lapply(all_data, getMessagesByType, "hrv")
+process_hrv <- function(x) {
+  tryCatch({ret <- getMessagesByType(x, "hrv");}, error = function(e) {ret <<- NA});
+  ret
+}
 
-#Clean up HRV data 
+hrv_data <- lapply(all_data, process_hrv)
+
+#Clean up HRV data
+  #throws warnings about using lists to find NA, which is fine
 for (i in 1:length(hrv_data)){
-  hrv <- unlist(hrv_data[[i]]$time)
+  if (is.na(hrv_data[[i]]) == TRUE){
+    next
+  } else {
+    hrv <- unlist(hrv_data[[i]]$time)
   hrv <- as_tibble(hrv)
   hrv_data[[i]] <- hrv
+  }
+  
 }
 
 sports <- lapply(all_data, getMessagesByType, "sport") %>%

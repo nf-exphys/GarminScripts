@@ -40,6 +40,9 @@ recent_laps <- map_dfr(recent_lap_files_path, read_csv, col_types= cols(
     sub_sport = "c", timestamp = col_datetime(format = "")
     ))
 
+### Need to figure out why ID doesn't show up some of the time
+## Maybe a problem with the new S4 class?
+
 #read in summary data
 recent_sum_files_path <- paste0(csv_file_path, recent_sum_files)
 recent_sum <- map_dfr(recent_sum_files_path, read_csv, col_types = cols_only(
