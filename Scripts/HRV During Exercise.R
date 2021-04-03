@@ -1,5 +1,5 @@
 library(tidyverse, warn.conflicts = F); library(RHRV)
-library(fitFileR); library(nonlinearTseries)
+library(nonlinearTseries)
 
 #Figure out which CSVs to read in 
 hrv_file_path <- "./Data/ExportedRunData/Cleaned_CSVs/"
