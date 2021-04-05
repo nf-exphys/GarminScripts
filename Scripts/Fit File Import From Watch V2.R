@@ -95,7 +95,8 @@ for (i in 1:length(hrv_data)){
     next
   } else {
     hrv <- unlist(hrv_data[[i]]$time)
-  hrv <- as_tibble(hrv)
+  hrv <- as_tibble(hrv) %>%
+    rename(hrv = value)
   hrv_data[[i]] <- hrv
   }
   
