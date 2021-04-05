@@ -33,15 +33,19 @@ exclude_dfa <- read.table("./Data/DFA/DFA_exclusions.txt",
                           fill = T, col.names = c("date")) %>%
                         pull(date)
 
+exclude_dfa2 <- read.table("./Data/DFA/DFA_exclusion.txt", 
+                          fill = T, col.names = c("date")) %>%
+  pull(date)
+
+exclude_dfa <- c(exclude_dfa, exclude_dfa2)
+remove(exclude_dfa2)
+
 #Compare hrv_to_read with DFA exclusions
 #And then overwrites hrv_files from all of the files to just the ones to read
 #(I know, not great naming here)
 
 hrv_files <- setdiff(hrv_to_read, exclude_dfa)
 
-### 04/03 Update: exclude_dfa is missing on Jango, proceeding without it.
-  #Will have to fix this later
-hrv_files <- hrv_to_read
 
 #Assume there's something new to read
 continue <- T
@@ -52,17 +56,17 @@ if (length(hrv_files) < 1){
   continue <- F
 }
 
-# #Check to see if I want to read in new files or not
-# if(continue == T){
-#   read_in_now <- readline("Do you want to process HRV data right now? Y or N...")
-#   if(read_in_now == "Y"){
-#     msg <- paste0("Okay, will continue reading in ", length(hrv_files), " files")
-#     print(msg)
-#   } else{
-#     continue <- F
-#   }
-#   
-# }
+#Check to see if I want to read in new files or not
+if(continue == T){
+  read_in_now <- readline("Do you want to process HRV data right now? Y or N...")
+  if(read_in_now == "Y"){
+    msg <- paste0("Okay, will continue reading in ", length(hrv_files), " files")
+    print(msg)
+  } else{
+    continue <- F
+  }
+
+}
 
 #### Simple RR Interval Processing
 if(continue == T){
@@ -291,21 +295,24 @@ if(continue == T){
     return(notable_dfa_values)
     
   }
-  
-#calculate DFA values for each run
+
+if(continue == T){
+  #calculate DFA values for each run
   all_dfa_values <- list()
   all_dfa_values <- lapply(hrv_list$source, rolling_dfa)
-
+}  
 
 #### Post-processing DFA ####
 #Add to DFA exclusions, export DFA values, etc. 
 
+if(continue == T){
+  
   #find runs without DFA data
   no_dfa <- which(lapply(all_dfa_values, length) < 4)
   
- #create exclude_dfa object if it doesn't already exist
+  #create exclude_dfa object if it doesn't already exist
   if(("exclude_dfa" %in% objects()) == FALSE){
-      exclude_dfa <- list()
+    exclude_dfa <- list()
   }
   
   #Takes files that didn't work for DFA and adds them to exclude_dfa list
@@ -347,6 +354,9 @@ if(continue == T){
     }
     
   }
+  
+}
+ 
   
 
 

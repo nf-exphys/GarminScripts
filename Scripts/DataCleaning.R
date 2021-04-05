@@ -4,7 +4,7 @@ library(tidyverse, warn.conflicts = F)
   #So much of what I'm doing is dependent on relational data
 
 #Read in any new files, save as CSV
-source("./Scripts/Fit File Import From Watch.R")
+source("./Scripts/Fit File Import From Watch V2.R")
 remove(list = ls())
 
 source("./Scripts/HRV During Exercise.R")
@@ -30,6 +30,8 @@ remove(all_record_files, all_lap_files, all_sum_files)
 recent_record_files_path <- paste0(csv_file_path, recent_record_files)
 recent_records <- map_dfr(recent_record_files_path, read_csv) %>%
   select(-fractional_cadence)
+
+### NEED TO ADD SOMETHING TO FIX MISSING IDs HERE :/
 
 #read in lap data
 recent_lap_files_path <- paste0(csv_file_path, recent_lap_files)
@@ -122,4 +124,7 @@ recent_laps <- subset(recent_laps, ID %in% only_running_IDs)
 recent_records <- subset(recent_records, ID %in% only_running_IDs)
 
 #Add a duration variable
+
+
+
 
