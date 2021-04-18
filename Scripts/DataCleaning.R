@@ -28,26 +28,22 @@ remove(all_record_files, all_lap_files, all_sum_files)
 
 #read in record data
 recent_record_files_path <- paste0(csv_file_path, recent_record_files)
-recent_records <- map_dfr(recent_record_files_path, read_csv) %>%
-  select(-fractional_cadence)
-
-### NEED TO ADD SOMETHING TO FIX MISSING IDs HERE :/
+recent_records <- lapply(recent_record_files_path, read_csv)
 
 #read in lap data
 recent_lap_files_path <- paste0(csv_file_path, recent_lap_files)
-recent_laps <- map_dfr(recent_lap_files_path, read_csv, col_types= cols(
-  .default = col_double(), ID = col_datetime(format = ""),
-    event = "c", event_type = "c", lap_trigger = "c",
-    sport = "c", start_time = col_datetime(format = ""),
-    sub_sport = "c", timestamp = col_datetime(format = "")
-    ))
-
-### Need to figure out why ID doesn't show up some of the time
-## Maybe a problem with the new S4 class?
+recent_laps <- lapply(recent_lap_files_path, read_csv)
 
 #read in summary data
 recent_sum_files_path <- paste0(csv_file_path, recent_sum_files)
-recent_sum <- map_dfr(recent_sum_files_path, read_csv, col_types = cols_only(
+recent_sum <- lapply(recent_sum_files_path, read_csv)
+
+#Most of the record files have ID. Most of the lap files do too.
+#Almost none of the summary files do.
+#Some of the summary files have 88 columns, while some only have 43.
+#It might just be easiest to redo all of it with more stringent QC
+
+  map_dfr(recent_sum_files_path, read_csv, col_types = cols_only(
   ID = col_datetime(format = ""),
   avg_heart_rate = "d", avg_speed = "d",
   max_heart_rate = "d", max_speed = "d",
@@ -58,6 +54,9 @@ recent_sum <- map_dfr(recent_sum_files_path, read_csv, col_types = cols_only(
   TimeMinutes = "d", timestamp = col_datetime(format = ""),
   total_descent = "d", total_distance = "d",
   total_elapsed_time = "d", total_timer_time = "d"))
+
+#If the ID is missing, make it again
+#time_char <- sum_data %>% pull(timestamp); time_char <-  gsub("[[:punct:]]", "_", time_char)
 
 rm(list = ls.str(mode = 'character')) #clears out lots of the non-DF objects
 

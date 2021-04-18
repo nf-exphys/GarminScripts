@@ -22,13 +22,19 @@ all_watch_path <- paste0(LETTERS, ":", "\\GARMIN\\ACTIVITY\\")
 watch_drive <- which(lapply(all_watch_path, file.access, mode=4) == 0)
 watch_path <- all_watch_path[watch_drive]
 
-#Check if the watch is plugged in
-if(file.access(names = watch_path, mode=4) == 0){
+if (is_empty(watch_path) == TRUE){ #if watch isn't there, watch_path is empty
+  
+  print("GPS Watch Not Detected. Should stop.")
+  continue <- F
+  
+} else if(file.access(names = watch_path, mode=4) == 0){
+  
   #update this eventually to say which drive
   print(paste0("Watch detected. Continuing"))
   continue <- T
-} else{
-  print("GPS Watch Not Detected. Should stop.")
+
+  } else{
+  print("There was a mistake finding the watch!")
   continue <- F
 }
 
