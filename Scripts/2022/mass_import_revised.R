@@ -1,5 +1,15 @@
 library(FITfileR); library(tidyverse)
 
+
+#### Automate Transfer/Extraction of Zip Files ####
+download_location <- "./Data/raw_fit_files/"
+
+zip_files <- list.files(path = download_location, pattern = "*.zip")
+
+#sub folder recursive == TRUE
+
+
+#### Read in Data from Fit Files ####
 data_path <- "./Data/raw_fit_files/"
 
 all_files <- list.files(path = data_path, pattern = ".fit", full.names = TRUE)
@@ -20,6 +30,8 @@ some_files <- all_files[1:100]
 
 #currently data is divided up by information type (record, lap, etc.)
 #might need to be by file with a for loop
+
+test <- readFitFile(all_files[[1]])
 
 catch_missing_field <- function(x, type = "hrv") {
   tryCatch({ret <- getMessagesByType(x, type);}, error = function(e) {ret <<- NA});
