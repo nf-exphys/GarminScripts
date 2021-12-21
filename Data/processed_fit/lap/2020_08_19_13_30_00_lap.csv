@@ -1,0 +1,2 @@
+timestamp,avg_speed,sub_sport,jump_count,total_moving_time,total_timer_time,num_active_lengths,message_index,avg_pos_vertical_speed,total_elapsed_time,start_time,total_distance,total_calories,sport,key
+2020-08-19T14:28:00Z,3.7,generic,65535,3480,3480,1,NA,0,3480,2020-08-19T13:30:00Z,12874.75,882,running,2020-08-19 13:30:00

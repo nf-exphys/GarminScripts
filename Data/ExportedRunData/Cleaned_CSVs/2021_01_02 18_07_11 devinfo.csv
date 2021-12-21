@@ -1,7 +1,0 @@
-"ID","ant_device_number","ant_network","ant_transmission_type","battery_status","battery_voltage","cum_operating_time","device_index","device_type","hardware_version","manufacturer","product","serial_number","software_version","source_type","timestamp"
-2021-01-02 18:07:11,0,NA,0,NA,255.99609375,4294967295,"creator",255,255,"garmin","fr235",3935516471,8.2,"local",2021-01-02 17:37:47
-2021-01-02 18:07:11,0,"antplus",0,"ok",255.99609375,4294967295,NA,120,1,"polar_electro","2",645613190,10,"antplus",2021-01-02 17:37:47
-2021-01-02 18:07:11,0,NA,0,NA,255.99609375,4294967295,NA,8,255,NA,"15",0,4.56,"local",2021-01-02 18:03:11
-2021-01-02 18:07:11,0,NA,0,NA,255.99609375,4294967295,"creator",255,255,"garmin","fr235",3935516471,8.2,"local",2021-01-02 18:07:06
-2021-01-02 18:07:11,0,"antplus",0,"ok",255.99609375,4294967295,NA,120,1,"polar_electro","2",645613190,10,"antplus",2021-01-02 18:07:06
-2021-01-02 18:07:11,0,NA,0,NA,255.99609375,4294967295,NA,8,255,NA,"15",0,5.85,"local",2021-01-02 18:07:06

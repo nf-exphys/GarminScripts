@@ -1,0 +1,2 @@
+max_heart_rate,timestamp,avg_speed,sub_sport,jump_count,total_moving_time,total_timer_time,num_active_lengths,message_index,avg_heart_rate,avg_pos_vertical_speed,total_elapsed_time,start_time,total_distance,total_calories,sport,key
+175,2019-12-29T23:25:35Z,3.688,generic,65535,6110,6110,1,NA,163,0,6110,2019-12-29T21:43:45Z,22530.82,1549,running,2019-12-29 21:43:45

@@ -1,0 +1,4 @@
+timestamp,data,event,event_type,event_group,key
+2020-03-09T23:26:31Z,0,timer,start,0,2020-03-09 23:26:35
+2020-03-09T23:55:52Z,874,NA,marker,255,2020-03-09 23:26:35
+2020-03-09T23:55:53Z,0,timer,stop_all,0,2020-03-09 23:26:35

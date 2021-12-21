@@ -1,0 +1,4 @@
+timestamp,data,event,event_type,event_group,key
+2020-11-01T23:10:06Z,0,timer,start,0,2020-11-01 23:10:06
+2020-11-01T23:30:16Z,584,NA,marker,255,2020-11-01 23:10:06
+2020-11-01T23:30:17Z,0,timer,stop_all,0,2020-11-01 23:10:06

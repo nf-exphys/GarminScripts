@@ -1,0 +1,5 @@
+timestamp,data,event,event_type,event_group,key
+2017-12-28T17:30:54Z,0,timer,start,0,2017-12-28 17:30:54
+2017-12-28T17:53:24Z,1222,NA,marker,255,2017-12-28 17:30:54
+2017-12-28T17:53:25Z,0,timer,stop_all,0,2017-12-28 17:30:54
+2017-12-28T17:55:25Z,121,recovery_hr,marker,255,2017-12-28 17:30:54

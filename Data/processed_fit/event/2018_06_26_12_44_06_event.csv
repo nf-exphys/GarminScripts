@@ -1,0 +1,4 @@
+timestamp,data,event,event_type,event_group,key
+2018-06-26T12:44:05Z,0,timer,start,0,2018-06-26 12:44:06
+2018-06-26T12:50:19Z,303,NA,marker,255,2018-06-26 12:44:06
+2018-06-26T12:50:20Z,0,timer,stop_all,0,2018-06-26 12:44:06

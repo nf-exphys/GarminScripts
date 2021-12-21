@@ -1,0 +1,5 @@
+timestamp,data,event,event_type,event_group,key
+2018-03-24T18:04:50Z,0,timer,start,0,2018-03-24 18:04:51
+2018-03-24T18:09:22Z,0,timer,stop_all,0,2018-03-24 18:04:51
+2018-03-24T18:09:22Z,1272,NA,marker,255,2018-03-24 18:04:51
+2018-03-24T18:11:22Z,111,recovery_hr,marker,255,2018-03-24 18:04:51
