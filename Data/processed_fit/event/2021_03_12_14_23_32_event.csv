@@ -1,0 +1,4 @@
+timestamp,data,event,event_type,event_group,key,time_created
+2021-03-12T20:23:32Z,0,timer,start,0,6419165919,2021_03_12_14_23_32
+2021-03-12T20:43:23Z,816,NA,marker,255,6419165919,2021_03_12_14_23_32
+2021-03-12T20:43:24Z,0,timer,stop_all,0,6419165919,2021_03_12_14_23_32

@@ -1,0 +1,2 @@
+timestamp,avg_speed,sub_sport,jump_count,total_moving_time,total_timer_time,num_active_lengths,message_index,total_elapsed_time,start_time,total_distance,total_calories,sport,key,time_created
+2021-07-07T12:48:00Z,3.441,generic,65535,3180,3180,1,NA,3180,2021-07-07T11:55:00Z,10943.54,737,running,7085027878,2021_07_07_06_55_00
