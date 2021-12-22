@@ -1,4 +1,5 @@
 import imaplib, email
+
 user = 'hrv4nick@gmail.com'
 password = input("Enter gmail pwd:")
 imap_url = 'imap.gmail.com'
@@ -27,6 +28,7 @@ def get_emails(result_bytes):
 con = imaplib.IMAP4_SSL(imap_url)
 
  # logging the user in
+ # sometimes throws error when Google blocks the login
 con.login(user, password)
 
 # calling function to check for email under this label 
@@ -36,23 +38,69 @@ msgs = get_emails(search('FROM', 'support@elitehrv.com', con))
 
 newest_msg =  len(msgs)-1
 
-msg_to_read = msgs[newest_msg]
 
-msg_to_read = str(msg_to_read)
+msg_to_read = msgs[newest_msg][0]
 
-start = msg_to_read.find('/export/')
+msg_to_read = msg_to_read[1]
 
+msg_to_read = msg_to_read.decode("utf-8")
+
+# msg_to_read = str(msg_to_read)
+
+# links = re.findall("http.*</a>", msg_to_read)
+# 
+# links = links[0]
+# 
+# links = links.split(sep = "http")
+# 
+# links[2]
+
+start = re.search('https', msg_to_read).start()
+
+end = msg_to_read.find('</a>')
+
+# start = msg_to_read.find('https:')
+
+
+
+#this means it didn't find the location of the link in the email
 if(start == -1):
     print("bad find")
 
-end = start + 100
-
 msg_to_return = msg_to_read[start:end]
+
+msg_to_return
 
 password = None
 
-link = msg_to_return.split(sep = "</a>")
+second_half = msg_to_return.split(sep = "Please click the following link to access your export:")
 
-link = link[0]
+def listToString(s): 
+    
+    # initialize an empty string
+    str1 = " " 
+    
+    #make string
+    str1 = str1.join(s)
+    
+    #remove annoying spaces from string
+    str2 = re.sub(pattern=" ", repl="", string=str1)
+    
+    return (str2)
 
-link = str('https://app.elitehrv.com' + link)
+
+second_half = second_half[1]
+
+second_half = listToString(second_half)
+
+type(second_half)
+
+no_rn = re.sub(pattern="\r\n", repl="", string=second_half)
+
+start = re.search('https', no_rn).start()
+
+end = len(no_rn)
+
+link = no_rn[start:end]
+
+link = re.sub(pattern="=", repl="", string=link)
