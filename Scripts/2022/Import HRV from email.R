@@ -44,6 +44,8 @@ if(is.null(url_check) == T){
   continue <- F
 }
 
+#write something to clear out old export.zip files from downloads folder
+
 if(continue == T){
   #open download link
   browseURL(url = link)
