@@ -1,5 +1,5 @@
 
-source("./Scripts/2022/initial_mass_import_helper_funcs.R")
+source("./Scripts/2022/fit_helper_funcs.R")
 
 #### Automate Transfer/Extraction of Zip Files ####
 download_location <- "./Data/zip_fit_files/"
