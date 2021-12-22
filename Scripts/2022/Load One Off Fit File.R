@@ -2,7 +2,7 @@
 
 library(FITfileR); library(data.table); library(tidyverse)
 # load_file <- list.files("./Data/raw_fit_files/6038649122_ACTIVITY.FIT", full.names = TRUE)
-load_file <- "./Data/raw_fit_files/5779085879_ACTIVITY.FIT" #load file straight from the watch
+load_file <- "./Data/processed_fit_files/6323276835_ACTIVITY.fit" #load file straight from the watch
 GarminFile <- readFitFile(load_file)
 getMessagesByType(GarminFile, "file_id")
 
