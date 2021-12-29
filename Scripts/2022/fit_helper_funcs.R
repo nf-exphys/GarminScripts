@@ -1,3 +1,7 @@
+if(!requireNamespace("FITfileR")) {
+  remotes::install_github("grimbough/FITfileR")
+}
+
 library(FITfileR); library(tidyverse)
 
 #function to catch errors thrown when data type doesn't exist
