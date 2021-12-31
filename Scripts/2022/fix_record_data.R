@@ -10,19 +10,17 @@ records <- list.files(path = "./Data/processed_fit/record/", pattern = "2021_", 
 data <- lapply(FUN = function(x){read_csv(x, show_col_types = FALSE) %>% mutate(key2 = key)}, 
                X = records)
 
+#merge list of DFs together, rename/relocate columns, fix time zone
 all_data <- bind_rows(data, .id = "key2") %>% 
   rename(id = key2, latitude = position_lat,
-         longitude = position_long)
-
-#get rid of fractional cadence and fix time zone
-#then make percent incline and rate of change columns
-all_data %<>% 
+         longitude = position_long) %>% 
   select(-fractional_cadence) %>% 
-  mutate(timestamp = lubridate::with_tz(timestamp, tzone = "America/Chicago")) %>% 
-  relocate(longitude, latitude, timestamp) %>% #switch lat/long order
-  group_by(key) %>% 
-  mutate(elev_grade = round((altitude - lag(altitude,5)) / (distance - lag(distance,5)) * 100, 3),
-         elev_rate_of_change = round((elev_grade - lag(elev_grade,5)) / (lag(elev_grade,5) * 100), 3)) 
+  mutate(timestamp = lubridate::with_tz(timestamp, tzone = "America/Chicago")) %>% #make sure time zone is always CST
+  relocate(longitude, latitude, timestamp) #switch lat/long order
+  
+# group_by(key) %>% 
+  # mutate(elev_grade = round((altitude - lag(altitude,5)) / (distance - lag(distance,5)) * 100, 3),
+  #        elev_rate_of_change = round((elev_grade - lag(elev_grade,5)) / (lag(elev_grade,5) * 100), 3)) 
 
 #Key is the number associated with the Fit file
 #Id is the number associated with the index in data as the files were read in
@@ -32,35 +30,64 @@ all_data %<>%
 #452 is hill repeats
 #405 has run near river
 
+#Find number of NAs in latitude/longitude
+
+sum(is.na(all_data$latitude), na.rm = FALSE)
+sum(is.na(all_data$longitude), na.rm = FALSE)
+
+#Set NAs in lat/long to zero
+all_data %<>%
+  mutate(latitude = case_when(is.na(latitude) ~ 0, latitude != 0 ~ latitude)) %>% 
+  mutate(longitude = case_when(is.na(longitude) ~ 0, longitude != 0 ~ longitude)) 
+
+#Now all NAs are gone
+sum(is.na(all_data$latitude), na.rm = FALSE)
+sum(is.na(all_data$longitude), na.rm = FALSE)
+
 
 #altitude data in fit file doesn't match Garmin Connect  
 #need to correct with USGS data
+#first convert to SF to get elevation data
 
 library(elevatr); library(sp); library(sf)
-sf_data <- all_data %>% 
-  ungroup() %>% 
-  drop_na(longitude, latitude) %>% #throws error if NA in coordinates
+sf_data <- all_data %>%
   relocate(longitude, latitude) %>% 
   st_as_sf(., coords = c("longitude", "latitude"), crs = 4326)
 
-test <- get_elev_point(sf_data, src = "epqs") #EPQS data matches with Garmin
+#create a smaller subset for testing
 
-#This might be helpful
-# st_as_sf(points, coords=1:2, crs=4326)
+sf_slim <- sf_data %>% filter(id > 430)
 
-# https://rdrr.io/cran/elevatr/man/get_epqs.html
+#Using AWS instead of EPQS because it's 10-20x faster
 
+#Test parallel processing
+tic()
+sf_data_corrected_parallel <- get_elev_point(sf_slim, src = "aws", z = 14, 
+                                    units = "meters", ncpu = future::availableCores() - 3, 
+                                    serial = FALSE)
+toc()
+
+#Compare to normal
+tic()
+sf_data_corrected <- get_elev_point(sf_slim, src = "aws", z = 14, 
+                                    units = "meters")
+toc()
+
+
+#### Plotting for Visualization ####
 #before plotting, get only the unique latitude and longitude coordinates 
   #to avoid repeats
 
-
-# interactive map:
 library(mapview)
-mapview(sf_data)
 
-test <- get_epqs(all_data, units = "meters", ncpu = future::availableCores() - 3, serial = FALSE)
+sf_slim <- all_data %>%
+  relocate(longitude, latitude) %>% 
+  distinct(latitude, .keep_all = TRUE) %>% #keep unique lat
+  distinct(longitude, .keep_all = TRUE) %>% #keep unique long, need separate distinct to slim data correctly
+  st_as_sf(., coords = c("longitude", "latitude"), crs = 4326) 
 
-class(sf_data)
+# interactive map
+mapview(sf_slim)
 
 library(slider)
 
