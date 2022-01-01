@@ -1,5 +1,5 @@
 
-source("./Scripts/2022/fit_helper_funcs.R")
+source("./Scripts/2022/master_fit_func.R")
 
 #### Automate Transfer/Extraction of Zip Files ####
 download_location <- "./Data/zip_fit_files/"
@@ -10,28 +10,94 @@ storage_location <- "./Data/raw_fit_files"
 zip_files <- list.files(path = download_location, pattern = "*.zip", full.names = TRUE)
 
 lapply(zip_files, unzip, exdir = storage_location)
+  #if zip_files is empty, nothing happens and no error is produced
 
-#Make a data frame with names of all the fit files that have been extracted
-file_names <- as_tibble(zip_files) %>%
-  rename(fit_name = value) %>%
-  mutate(fit_name = str_remove(fit_name, download_location),
-         fit_name = str_remove(fit_name, ".zip"))
+#Makes CSV of fit file numbers but doesn't write it if there isn't new data
 
-#Write this to a file to compare for future imports
-write_csv(file_names, file = "./Data/fit_files_already_extracted.csv")
+if(nrow(as_tibble(zip_files)) > 0){
+  
+  #Make a data frame with names of all the fit files that have been extracted
+  
+  file_names <- as_tibble(zip_files) %>%
+    rename(fit_name = value) %>%
+    mutate(fit_name = str_remove(fit_name, download_location),
+           fit_name = str_remove(fit_name, ".zip"))
+  
+  date_today <- tolower(as.character(date()))
+  date_today <- str_replace_all(date_today, " ", "_")
+  date_today <- str_replace_all(date_today, ":", "_")
+  
+  file_path <- paste0("./Data/", "fit_files_already_extracted_", date_today, ".csv")
+  
+  #Write this to a file to compare for future imports
+  write_csv(file_names, file = file_path)
+  
+}
 
 #Now that zip files have been extracted, they can be deleted
 file.remove(zip_files)
 
-#### Read in Data from Fit Files ####
+#### Setup for Parallel Processing ####
 
 #list all files ready to be processed
-fit_files <- list.files(path = storage_location, pattern = ".fit", full.names = TRUE)
+fit_files_list <- list.files(path = storage_location, pattern = ".fit", full.names = TRUE)
 
-#start by making everything into FitFile objects
-all_data <- lapply(fit_files, readFitFile)
+library(parallel)
+numCores <- detectCores()
+cores_to_use <- numCores-2
+cl <- makeCluster(cores_to_use)
 
-data_to_write <- list("file_info", "record", "lap", "event", "hrv", "device_info")
+# #start by making everything into FitFile objects
+# all_data <- parallel::parLapply(cl, fit_files_list, FITfileR::readFitFile)
+
+#Set up workers with necessary libraries
+clusterEvalQ(cl, {
+  library(dplyr);
+  library(tidyr);
+  library(readr);
+  library(stringr);
+  library(FITfileR);
+  library(elevatr);
+  library(sp);
+  library(sf)
+  })
+
+#make list of functions in global environment
+list_of_funcs <- as.vector(lsf.str())
+
+#make sure each worker can access the functions
+clusterExport(cl, list_of_funcs)
+
+#### Process Data ####
+
+# tictoc::tic()
+parallel::parLapply(cl, 
+                    fit_files_list, 
+                    fun = function(x) tryCatch(process_fit_data(x), error = function(e) e)
+                    )
+
+closeAllConnections()
+# tictoc::toc()
+
+# tictoc::tic()
+# lapply(fit_files_list[1:10], process_fit_data)
+# closeAllConnections()
+# tictoc::toc()
+
+#6339266060 is the last one that worked successfully
+which(str_detect(fit_files_list, "6339266060") == T)
+
+process_fit_data(fit_files_list[407])
+
+listMessageTypes(readFitFile(fit_files_list[407]))
+
+test <- readFitFile(fit_files_list[407])
+
+getMessagesByType(test, "file_id")
+
+
+stopCluster(cl)
+remove(cl)
 
 for (i in 1:length(all_data)){
   
@@ -40,9 +106,14 @@ for (i in 1:length(all_data)){
     unlist() %>% 
     as.numeric()
   
-  #get data
+  #get preliminary data
   file_info <- get_data("file_id")
-  record <- get_data("record")
+  sport <- get_data("sport") #need to be before record to determine indoor/outdoor
+  
+  #process record data
+  record <- get_record(i)
+  
+  #get the rest of the data
   lap <- get_data("lap")
   event <- get_data("event")
   hrv <- get_data("hrv")
@@ -68,17 +139,12 @@ for (i in 1:length(all_data)){
   time_created <- str_replace_all(string = time_created, pattern = "[\\s|:|-]", replacement = "_")
     #convert POSIXct to character and replace special characters
   
-  sink(nullfile())
+  sink(nullfile()) #needed to suppress console output
   lapply(data_to_write, write_csv_path)
-  sink()
+  sink() #revert back to normal console output
   
-  
-  # write_csv_path("file_info")
-  # write_csv_path("record")
-  # write_csv_path("lap")
-  # write_csv_path("event")
-  # write_csv_path("hrv")
-  
+  #clear out sport to make sure record data is processed correctly
+  sport <- NULL 
 }
 
 #### Notes ####
