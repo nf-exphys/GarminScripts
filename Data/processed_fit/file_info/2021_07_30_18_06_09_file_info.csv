@@ -1,2 +1,2 @@
-serial_number,time_created,manufacturer,product,number,type,name,sport,sub_sport,hrm_connect,key
-3935516471,2021-07-30T23:06:09Z,garmin,2431,65535,activity,Run,running,generic,TRUE,7218120447
+serial_number,time_created,manufacturer,product,number,type,hrm_connect,name,sport,sub_sport,key
+3935516471,2021_07_30_18_06_09,garmin,2431,65535,activity,TRUE,Run Indoor,running,treadmill,7218120447
