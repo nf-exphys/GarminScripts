@@ -70,84 +70,30 @@ clusterExport(cl, list_of_funcs)
 
 #### Process Data ####
 
-# tictoc::tic()
 parallel::parLapply(cl, 
                     fit_files_list, 
                     fun = function(x) tryCatch(process_fit_data(x), error = function(e) e)
                     )
 
 closeAllConnections()
-# tictoc::toc()
-
-# tictoc::tic()
-# lapply(fit_files_list[1:10], process_fit_data)
-# closeAllConnections()
-# tictoc::toc()
-
-#6339266060 is the last one that worked successfully
-which(str_detect(fit_files_list, "6339266060") == T)
-
-process_fit_data(fit_files_list[407])
-
-listMessageTypes(readFitFile(fit_files_list[407]))
-
-test <- readFitFile(fit_files_list[407])
-
-getMessagesByType(test, "file_id")
-
 
 stopCluster(cl)
 remove(cl)
 
-for (i in 1:length(all_data)){
-  
-  fit_id <- str_match_all(string = fit_files[[i]], 
-                          pattern = "[0-9]+") %>% 
-    unlist() %>% 
-    as.numeric()
-  
-  #get preliminary data
-  file_info <- get_data("file_id")
-  sport <- get_data("sport") #need to be before record to determine indoor/outdoor
-  
-  #process record data
-  record <- get_record(i)
-  
-  #get the rest of the data
-  lap <- get_data("lap")
-  event <- get_data("event")
-  hrv <- get_data("hrv")
-  device_info <- get_data("device_info")
-  
-  #get the year that the file was made
-  year <- str_extract(string = as.character(file_info$time_created), pattern = "[:digit:]{4}")
-  year <- as.numeric(year)
-  
-  #don't read in data older than 2020
-  if(year < 2020){
-    print(paste0("file #", i, " was made in ", year, "and isn't newer than 2020. Skipping."))
-    next
-  }
-  
-  #merge sport and file_info because they're both always one row
-  file_info <- bind_cols(file_info, sport, .name_repair = "unique")
+#### Code for testing if needed ####
 
-  #determine whether HRM was connected
-  file_info$hrm_connect <- hrm_connected(device_info)
-  
-  time_created <- as.character(file_info$time_created)
-  time_created <- str_replace_all(string = time_created, pattern = "[\\s|:|-]", replacement = "_")
-    #convert POSIXct to character and replace special characters
-  
-  sink(nullfile()) #needed to suppress console output
-  lapply(data_to_write, write_csv_path)
-  sink() #revert back to normal console output
-  
-  #clear out sport to make sure record data is processed correctly
-  sport <- NULL 
-}
+# which(str_detect(fit_files_list, "6339266060") == T)
+# 
+# process_fit_data(fit_files_list[407])
+# 
+# listMessageTypes(readFitFile(fit_files_list[407]))
+# 
+# test <- readFitFile(fit_files_list[407])
+# 
+# getMessagesByType(test, "file_id")
 
 #### Notes ####
+
 #Possible file types:
 #"file_id" device serial number, time_created, product number (not much else useful)
 #"device_settings" not helpful
