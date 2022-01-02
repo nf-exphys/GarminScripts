@@ -1,10 +1,11 @@
 
-source("./Scripts/2022/fit_helper_funcs.R")
+source("./Scripts/2022/master_fit_func.R")
 
 #### Automate Transfer/Extraction of Zip Files ####
 download_location <- "./Data/zip_fit_files/"
 storage_location <- "./Data/raw_fit_files"
 
+#this is going to break
 fit_already_done <- read_csv("./Data/fit_files_already_extracted.csv")
 
 # storage_location <- "./Data/processed_fit_files" #fit files go here once analyzed
