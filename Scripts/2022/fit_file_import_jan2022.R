@@ -23,14 +23,8 @@ if(nrow(as_tibble(zip_files)) > 0){
     mutate(fit_name = str_remove(fit_name, download_location),
            fit_name = str_remove(fit_name, ".zip"))
   
-  date_today <- tolower(as.character(date()))
-  date_today <- str_replace_all(date_today, " ", "_")
-  date_today <- str_replace_all(date_today, ":", "_")
-  
-  file_path <- paste0("./Data/", "fit_files_already_extracted_", date_today, ".csv")
-  
   #Write this to a file to compare for future imports
-  write_csv(file_names, file = file_path)
+  write_csv(file_names, file = "./Data/fit_files_already_extracted.csv", append = TRUE)
   
 }
 
@@ -46,9 +40,6 @@ library(parallel)
 numCores <- detectCores()
 cores_to_use <- numCores-2
 cl <- makeCluster(cores_to_use)
-
-# #start by making everything into FitFile objects
-# all_data <- parallel::parLapply(cl, fit_files_list, FITfileR::readFitFile)
 
 #Set up workers with necessary libraries
 clusterEvalQ(cl, {
@@ -75,9 +66,8 @@ parallel::parLapply(cl,
                     fun = function(x) tryCatch(process_fit_data(x), error = function(e) e)
                     )
 
-closeAllConnections()
-
 stopCluster(cl)
+closeAllConnections()
 remove(cl)
 
 #### Code for testing if needed ####
