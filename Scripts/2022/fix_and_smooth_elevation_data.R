@@ -19,6 +19,9 @@ record_df <- bind_rows(record_data, .id = "key2") %>%
   drop_na(latitude, longitude)
 
 record_list <- record_df %>% 
+  group_by(key) %>% 
+  group_split(.keep = TRUE)
+
 #function to extract the key variable from a dataframe or list of data frames
 get_key <- function(x){return(unique(x$key))}
 
