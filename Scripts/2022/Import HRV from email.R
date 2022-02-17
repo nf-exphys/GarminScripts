@@ -1,8 +1,8 @@
 #Call python script to get download link
 
 library(reticulate); library(utils)
-path_to_python <- "C:/Users/nick.foreman/AppData/Local/Programs/Python/Python39/"
-use_python(path_to_python)
+path_to_python <- "C:/Users/Nick.Foreman/AppData/Local/Programs/Python/Python39/"
+use_python(path_to_python, required = T)
 
 source_python("pull_hrv_from_gmail.py")
 
