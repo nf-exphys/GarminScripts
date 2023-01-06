@@ -5,6 +5,7 @@ Created on Wed Feb 16 18:32:26 2022
 @author: Nick.Foreman
 """
 
+#This script is set up to be automated for daily activity download from Garmin Connect
 
 import logging
 import datetime
@@ -34,26 +35,12 @@ from garminconnect import (
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+#Set date for today and one week ago to use as bounds for download
 today = datetime.date.today()
 lastweek = today - datetime.timedelta(days=7)
 
-#abs_repo_path = os.path.relpath("C:\Desktop\Desktop Code\GarminData")
-#print(abs_repo_path)
-
-#os.path.join(abs_repo_path, "Data\re")
-
-# login_path = ["C:\\Desktop", "garmin_login.txt"]
-# login_path = os.path.join('', *login_path)
-# print(login_path)
-# login_path = os.path.abspath(login_path) #needs to be absolute because it's outside the repo
-
-# login_path = os.path("C:/Desktop//garmin_login.txt")
-#C:\Users\Nick.Foreman\Desktop\garmin_login.txt
-
 path = os.path.abspath("C:/Users/Nick.Foreman/Desktop")
 os.chdir(path)
-
-#path = os.path.abspath("C:/Users/Nick.Foreman/Desktop/garmin_login.txt")
 
 pwd = open("garmin_login.txt").read()
 
@@ -61,12 +48,7 @@ pwd = open("garmin_login.txt").read()
 path = os.path.abspath("C:/Users/Nick.Foreman")
 os.chdir(path)
 
-#api = Garmin("nick.foreman@pillarit.com", pwd)
-
-## Login to Garmin Connect portal
-#api_attempt = api.login()
-
-#api.logout()
+# Use try/except to handle errors
 
 try:
     # API
@@ -219,15 +201,4 @@ except (
 
 api.logout()
 
-  # Get full name from profile: #logger.info(api.get_full_name())
-    # Get unit system from profile: #logger.info(api.get_unit_system())
-    # Get last activity: #logger.info(api.get_last_activity())
-    
-    #not sure how this logger thing works...
-    
-    #activities = api.get_activities(0,10) # 0=start, 1=limit
-    #logger.info(activities)
-
-    # Get activities data from startdate 'YYYY-MM-DD' to enddate 'YYYY-MM-DD', with (optional) activitytype
-    # Possible values are [cycling, running, swimming, multi_sport, fitness_equipment, hiking, walking, other]
-      
+  
