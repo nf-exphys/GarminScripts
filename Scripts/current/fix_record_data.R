@@ -1,5 +1,5 @@
 library(magrittr)
-source("./Scripts/2022/periodic_fit_import.R")
+source("./Scripts/current/periodic_fit_import.R")
 
 rm(list = ls())
 

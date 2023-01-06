@@ -1,5 +1,8 @@
+# This script should be used after connect_scraping.py
+# This handles the cleaning/moving of files to keep the fit files organized
+# It also converts fit files to CSVs
 
-source("./Scripts/2022/master_fit_func.R")
+source("./Scripts/current/master_fit_func.R")
 
 download_location <- "./Data/zip_fit_files/" #location for zip download
 storage_location <- "./Data/raw_fit_files" #location for storage of fit files
@@ -71,45 +74,4 @@ for (i in 1:length(fit_files)){
   
 }
 
-#Old for loop to process data
-
-# for (i in 1:length(all_data)){
-
-# fit_id <- str_match_all(string = fit_files[[i]], 
-#                         pattern = "[0-9]+") %>% 
-#   unlist() %>% 
-#   as.numeric()
-# 
-# #get data
-# file_info <- get_data("file_id")
-# record <- get_data("record")
-# lap <- get_data("lap")
-# event <- get_data("event")
-# hrv <- get_data("hrv")
-# device_info <- get_data("device_info")
-# 
-# #get the year that the file was made
-# year <- str_extract(string = as.character(file_info$time_created), pattern = "[:digit:]{4}")
-# year <- as.numeric(year)
-# 
-# #don't read in data older than 2020
-# if(year < 2020){
-#   print(paste0("file #", i, " was made in ", year, "and isn't newer than 2020. Skipping."))
-#   next
-# }
-# 
-# #merge sport and file_info because they're both always one row
-# file_info <- bind_cols(file_info, sport, .name_repair = "unique")
-# 
-# #determine whether HRM was connected
-# file_info$hrm_connect <- hrm_connected(device_info)
-# 
-# time_created <- as.character(file_info$time_created)
-# time_created <- str_replace_all(string = time_created, pattern = "[\\s|:|-]", replacement = "_")
-# #convert POSIXct to character and replace special characters
-# 
-# sink(nullfile())
-# lapply(data_to_write, write_csv_path)
-# sink()
-# 
-# }
+#Future versions of this script should write data to the database directly

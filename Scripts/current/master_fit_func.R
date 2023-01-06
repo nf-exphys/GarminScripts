@@ -1,5 +1,7 @@
+#This script holds a function to clean fit files that come in from Garmin Connect
+#Helper functions are contained in the script below
 
-source("./Scripts/2022/fit_helper_funcs.R")
+source("./Scripts/current/fit_helper_funcs.R")
 
 process_fit_data <- function(fit_file){
   # browser()
