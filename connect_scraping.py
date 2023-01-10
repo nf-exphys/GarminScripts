@@ -7,13 +7,17 @@ Created on Wed Feb 16 18:32:26 2022
 
 #This script is set up to be automated for daily activity download from Garmin Connect
 
+#Define path to project to batch file works
+
+#sys.path.append('C:\\Users\\Nick.Foreman\\Desktop\\Code\\GarminData')
+
+#Import other modules
 import logging
 import datetime
 import re
 import os
-import sys
-
 import zipfile
+import sys
 
 from time import sleep
 
@@ -39,12 +43,13 @@ logger = logging.getLogger(__name__)
 today = datetime.date.today()
 lastweek = today - datetime.timedelta(days=7)
 
+#Changes directory to desktop to load login in
 path = os.path.abspath("C:/Users/Nick.Foreman/Desktop")
 os.chdir(path)
 
 pwd = open("garmin_login.txt").read()
 
-#reset path to normal
+#Changes path back
 path = os.path.abspath("C:/Users/Nick.Foreman")
 os.chdir(path)
 
