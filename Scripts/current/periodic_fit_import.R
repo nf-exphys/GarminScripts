@@ -57,17 +57,33 @@ lapply(fit_files, process_fit_data)
 
 #now check the fit files in file_info folder 
 fit_files <- list.files("./Data/processed_fit/file_info", full.names = TRUE)
+
+#This loop handles the tracking of which fit files have been processed
 for (i in 1:length(fit_files)){
   
-  csv <- read_csv(fit_files[i], col_select = "key", show_col_types = FALSE)
-  if (unique(csv$key) %in% fit_already_done$fit_name){
-    next
+  #need to check and see if key is a column
+  csv <- read_csv(fit_files[i], show_col_types = FALSE) #need to select key
+  
+  #If the key column exists (first if) and isn't already processed,
+    #add it to the list of fit files that have been processed
+    #Otherwise, skip
+  if ("key" %in% colnames(csv)){
+    
+    if (unique(csv$key) %in% fit_already_done$fit_name){
+      next #fit file has already been processed
+    } else{
+      key = as_tibble(unique(csv$key))
+      names(key)[1] = "fit_name"
+      fit_already_done <- bind_rows(fit_already_done, key)
+    }  
+    
   } else{
-    key = as_tibble(unique(csv$key))
-    names(key)[1] = "fit_name"
-    fit_already_done <- bind_rows(fit_already_done, key)
+    
+    next #fit file doesn't have a key, usually due to manual upload
+    
   }
   
+  #Once all files have been looped through, write the table to file
   if (i == length(fit_files)){
     write_csv(fit_already_done, "./Data/fit_files_already_extracted.csv")    
   }
