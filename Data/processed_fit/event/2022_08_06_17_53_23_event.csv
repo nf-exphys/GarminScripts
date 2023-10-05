@@ -1,4 +1,0 @@
-timestamp,data,event,event_type,event_group,key,time_created
-2022-08-06T22:53:22Z,0,timer,start,0,9351937932,2022_08_06_17_53_23
-2022-08-06T23:10:46Z,468,NA,marker,255,9351937932,2022_08_06_17_53_23
-2022-08-06T23:10:47Z,0,timer,stop_all,0,9351937932,2022_08_06_17_53_23

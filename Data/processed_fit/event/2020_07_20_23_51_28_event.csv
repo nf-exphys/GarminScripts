@@ -1,5 +1,0 @@
-timestamp,data,event,event_type,event_group,key
-2020-07-20T23:51:28Z,0,timer,start,0,2020-07-20 23:51:28
-2020-07-21T00:11:28Z,526,NA,marker,255,2020-07-20 23:51:28
-2020-07-21T00:11:29Z,0,timer,stop_all,0,2020-07-20 23:51:28
-2020-07-21T00:13:29Z,102,recovery_hr,marker,255,2020-07-20 23:51:28
