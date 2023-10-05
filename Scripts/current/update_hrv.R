@@ -10,5 +10,3 @@ paste(year(today()), day(today()), month(today()), sep = "_")
 # 2023_9_1_myMeasurements
 
 read_csv()
-
-
