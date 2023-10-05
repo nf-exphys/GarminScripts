@@ -1,4 +1,0 @@
-timestamp,data,event,event_type,event_group,key
-2018-02-01T15:16:55Z,0,timer,start,0,2018-02-01 15:16:56
-2018-02-01T15:30:07Z,0,timer,stop_all,0,2018-02-01 15:16:56
-2018-02-01T15:30:07Z,1570,NA,marker,255,2018-02-01 15:16:56
