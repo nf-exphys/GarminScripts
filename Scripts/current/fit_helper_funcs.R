@@ -72,7 +72,6 @@ add_key <- function(.data, fit_id){
 }
 
 #function to initially read in data for relevant fields
-#assumes FitFileR data is stored as all_data[[i]]
 get_data <- function(type_to_get = "file_id", fit_file){
   
   if(type_to_get == "file_id"){
@@ -132,8 +131,9 @@ get_data <- function(type_to_get = "file_id", fit_file){
 #Moved record data processing into its own function
 get_record <- function(fit_file){
   #browser()
-  
-  record <- attempt_record(fit_file) %>% #catches error seen with developer fields not being read by package
+
+  #catches error seen with developer fields not being read by package
+  record <- attempt_record(fit_file) %>% 
     convert_time_cols()
   
   if(nrow(record) > 0){
@@ -241,14 +241,51 @@ get_record <- function(fit_file){
     #Otherwise, make up an elevation column and fill with zeros
     #This condition is important, because "other" activities aren't technically indoors but don't have position data
     if(is_indoor == FALSE & is_position == TRUE){
+      
+      
+      
       record[missing_geo_idx,]$latitude <- median(record$latitude, na.rm = TRUE)
       record[missing_geo_idx,]$longitude <- median(record$longitude, na.rm = TRUE)
+      
+      
       
       #Convert to sf  
       record <- record %>% st_as_sf(., coords = c("longitude", "latitude"), crs = 4326)
       
+      #catch points that are unrealistically far apart from each other
+      record <- record %>% 
+        mutate(lat_long_dist = map2_dbl(
+        geometry,
+        lead(geometry), 
+        ~ sf::st_distance(.x, .y) # Calculate distance
+      ))
+      
+      #filter out elevation points that are incorrect
+        #typically just one second at a time where the GPS defaults to (180,180)
+        #this caused problems, because then elevation had to be downloaded 
+          #for an unreasonably large area
+        #could come back and impute the lat/long data, but for now this will work
+      record <- record %>% 
+        filter(lat_long_dist < 50) %>% 
+        select(-lat_long_dist) #no longer needed
+      
       #get elevation data
-      record$elevation <- suppressMessages(get_elev_point(record, src = "aws", z = 14, units = "meters")$elevation)
+      tryCatch({
+        #if no error, use AWS data at zoom=14 to pull elevation data
+        record$elevation <- suppressMessages(get_elev_point(record, 
+                                            src = "aws", 
+                                            z = 14, 
+                                            units = "meters")$elevation)
+      }, error = function(e) {
+        
+        #if there's an error, try zooming out to use less data
+        warning("Running elevation correction with less accuracy")
+        record$elevation <- suppressMessages(get_elev_point(record, 
+                                            src = "aws", 
+                                            z = 5, 
+                                            units = "meters")$elevation)
+        
+      })
       
       #convert record back to tibble and drop unneeded columns
       record <- record %>% 

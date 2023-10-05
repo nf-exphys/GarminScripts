@@ -2,7 +2,12 @@
 # This handles the cleaning/moving of files to keep the fit files organized
 # It also converts fit files to CSVs
 
-source("./Scripts/current/master_fit_func.R")
+
+if(interactive()){ #if R is being run by the user
+  source("./Scripts/current/master_fit_func.R")  
+}
+
+
 
 download_location <- "./Data/zip_fit_files/" #location for zip download
 storage_location <- "./Data/raw_fit_files" #location for storage of fit files
@@ -48,11 +53,12 @@ if(length(fit_files) < 1){
 
 #### Process Data ####
 
-all_data <- lapply(fit_files, readFitFile)
+#all_data <- lapply(fit_files, readFitFile)
+  #not needed, fit file reading is included in process_fit_data
 
 data_to_write <- list("file_info", "record", "lap", "event", "hrv", "device_info")
 
-#this seems to work, not sure why I wasn't using it before?
+#process the fit files
 lapply(fit_files, process_fit_data)
 
 #now check the fit files in file_info folder 
