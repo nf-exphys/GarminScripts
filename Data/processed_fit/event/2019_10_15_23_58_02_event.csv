@@ -1,5 +1,0 @@
-timestamp,data,event,event_type,event_group,key
-2019-10-15T23:58:00Z,0,timer,start,0,2019-10-15 23:58:02
-2019-10-16T00:29:51Z,0,timer,stop_all,0,2019-10-15 23:58:02
-2019-10-16T00:29:51Z,642,NA,marker,255,2019-10-15 23:58:02
-2019-10-16T00:31:51Z,105,recovery_hr,marker,255,2019-10-15 23:58:02
