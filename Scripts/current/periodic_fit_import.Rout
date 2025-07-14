@@ -1,5 +1,5 @@
 
-R version 4.1.3 (2022-03-10) -- "One Push-Up"
+R version 4.2.2 (2022-10-31 ucrt) -- "Innocent and Trusting"
 Copyright (C) 2022 The R Foundation for Statistical Computing
 Platform: x86_64-w64-mingw32/x64 (64-bit)
 
@@ -20,12 +20,46 @@ Type 'q()' to quit R.
 > # This script should be used after connect_scraping.py
 > # This handles the cleaning/moving of files to keep the fit files organized
 > # It also converts fit files to CSVs
+> library(tidyverse)
+── Attaching packages ─────────────────────────────────────── tidyverse 1.3.2 ──
+✔ ggplot2 3.4.2     ✔ purrr   1.0.1
+✔ tibble  3.2.1     ✔ dplyr   1.1.2
+✔ tidyr   1.3.0     ✔ stringr 1.5.0
+✔ readr   2.1.4     ✔ forcats 0.5.2
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+Warning messages:
+1: package 'tibble' was built under R version 4.2.3 
+2: package 'dplyr' was built under R version 4.2.3 
 > 
-> source("./Scripts/current/master_fit_func.R")
-Error in file(filename, "r", encoding = encoding) : 
-  cannot open the connection
-Calls: source -> file
-In addition: Warning message:
-In file(filename, "r", encoding = encoding) :
-  cannot open file './Scripts/current/master_fit_func.R': No such file or directory
+> if(interactive()){ #if R is being run by the user
++   source("./Scripts/current/master_fit_func.R")  
++ }
+> 
+> download_location <- "./Data/zip_fit_files/" #location for zip download
+> storage_location <- "./Data/raw_fit_files" #location for storage of fit files
+> 
+> #Give warning if zip files haven't been extracted/copied
+> if (length(list.files(download_location) != 0)){
++   
++   warning("Not all zip files have been extracted")
++ 
++ }
+> 
+> #### Find New Fit Files ####
+> 
+> #list all files ready to be processed
+> fit_files <- list.files(path = storage_location, pattern = ".fit", full.names = TRUE)
+> 
+> #gets just the file # from the file name of the fit files
+> fit_to_read <- as_tibble(fit_files) %>%
++   rename(fit_name = value) %>%
++   mutate(fit_name = str_remove(fit_name, storage_location),
++          fit_name = str_remove(fit_name, "/"),
++          fit_name = str_remove(fit_name, "_ACTIVITY.fit"),
++          fit_name = as.numeric(fit_name))
+> 
+> fit_already_done <- read_csv("./Data/fit_files_already_extracted.csv") 
+Error: './Data/fit_files_already_extracted.csv' does not exist in current working directory ('C:/Windows/System32').
 Execution halted

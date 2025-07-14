@@ -1,16 +1,20 @@
 # This script should be used after connect_scraping.py
 # This handles the cleaning/moving of files to keep the fit files organized
 # It also converts fit files to CSVs
-
+library(tidyverse)
 
 if(interactive()){ #if R is being run by the user
   source("./Scripts/current/master_fit_func.R")  
 }
 
+#NEED TO FIGURE OUT FILE PATHS FOR SCRIPTS VS. DATA
 
+here::set_here()
 
-download_location <- "./Data/zip_fit_files/" #location for zip download
-storage_location <- "./Data/raw_fit_files" #location for storage of fit files
+here::i_am("./Scripts/current/periodic_fit_import.R")
+
+download_location <- "./zip_fit_files/" #location for zip download
+storage_location <- "./raw_fit_files" #location for storage of fit files
 
 #Give warning if zip files haven't been extracted/copied
 if (length(list.files(download_location) != 0)){
